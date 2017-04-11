@@ -1,4 +1,4 @@
-package ca.schwitzer.mastodon_api
+package ca.schwitzer.scaladon
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
@@ -8,7 +8,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
 import akka.stream.scaladsl.{FileIO, Flow, Sink, Source}
-import ca.schwitzer.mastodon_api.models._
+import ca.schwitzer.scaladon.models._
 import play.api.libs.json._
 
 import scala.concurrent.{ExecutionContext, Future}

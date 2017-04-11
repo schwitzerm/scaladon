@@ -1,4 +1,4 @@
-package ca.schwitzer.mastodon_api
+package ca.schwitzer.scaladon
 
 import java.nio.file.Paths
 
