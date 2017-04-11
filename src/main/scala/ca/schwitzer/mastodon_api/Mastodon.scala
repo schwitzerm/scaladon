@@ -199,20 +199,6 @@ class Mastodon private(baseURI: String,
 
   //region Media
 
-  //TODO: fix, returning 422
-  def uploadAttachment(file: Path)(accessToken: AccessToken): Future[Attachment] = {
-    val entity = Multipart.FormData(
-      Multipart.FormData.BodyPart(
-        "file",
-        HttpEntity(MediaTypes.`image/jpeg`, file.toFile.length(), FileIO.fromPath(file)),
-        Map("filename" -> file.getFileName.toString)
-      )
-    ).toEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/instance", entity = entity)
-
-    makeRequest(request).flatMap(_.transformSuccessEntityTo[Attachment])
-  }
-
   //endregion Media
 
   //region Requests
