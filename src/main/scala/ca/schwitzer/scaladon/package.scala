@@ -8,7 +8,7 @@ import play.api.libs.json._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-package object mastodon_api {
+package object scaladon {
 
   final val dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
 

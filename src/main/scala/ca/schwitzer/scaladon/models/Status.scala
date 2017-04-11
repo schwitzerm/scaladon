@@ -1,4 +1,4 @@
-package ca.schwitzer.mastodon_api.models
+package ca.schwitzer.scaladon.models
 
 import org.joda.time.DateTime
 import play.api.libs.functional.syntax._
@@ -26,7 +26,7 @@ case class Status(id: Int,
                   application: Option[Application])
 
 object Status {
-  import ca.schwitzer.mastodon_api.dateReads
+  import ca.schwitzer.scaladon.dateReads
 
   implicit val reads: Reads[Status] = (
     (__ \ "id").read[Int] and
