@@ -18,7 +18,7 @@ object MyMastodonApp extends App {
 
   val statusFuture: Future[Status] = appFuture.flatMap { app =>
     app.login("my_cool@email.com", "thisshouldreallybesupersecure").flatMap { accessToken =>
-      app.toot("I'm toot from the Scaladon API!", StatusVisibilities.Public)(accessToken).map {
+      app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(accessToken).map {
         case ResponseSuccess(status) => status
         case ResponseFailure(statusCode, err) =>
           //ideally, send this to where it needs to go, error handler etc.
