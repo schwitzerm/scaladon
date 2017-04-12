@@ -1,7 +1,7 @@
 package ca.schwitzer.scaladon
 
 import akka.http.javadsl.model.headers.HttpCredentials
+import akka.http.scaladsl.model.headers.Cookie
+import play.api.libs.json._
 
-case class AccessToken(value: String) {
-  def asCredentials: HttpCredentials = HttpCredentials.createOAuth2BearerToken(value)
-}
+case class AccessToken(credentials: HttpCredentials)

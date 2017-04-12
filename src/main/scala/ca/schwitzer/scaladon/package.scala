@@ -7,10 +7,23 @@ import org.joda.time.format.DateTimeFormat
 import play.api.libs.json._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 package object scaladon {
 
   final val dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+
+  sealed abstract class Response[+A] extends Product with Serializable {
+    def get: A
+  }
+
+  case class ResponseSuccess[A](value: A) extends Response[A] {
+    override def get: A = value
+  }
+
+  case class ResponseFailure(statusCode: StatusCode, throwable: Throwable) extends Response[Nothing] {
+    override def get = throw new NoSuchElementException("ResponseFailure.get")
+  }
 
   implicit val dateReads: Reads[DateTime] = Reads[DateTime](js =>
     js.validate[String].map(str =>
@@ -25,20 +38,37 @@ package object scaladon {
   }
 
   implicit class HttpResponseExtensions(response: HttpResponse) {
-    def mapSuccess[A](f: (HttpResponse) => A): A = {
-      if(response.status.isFailure()) { throw new Exception(s"HttpRequest failed with error: ${response.status}") }
-      else { f(response) }
-    }
-
-    def transformSuccessEntityTo[A: Reads](implicit m: Materializer, ec: ExecutionContext): Future[A] = {
-      response.mapSuccess(_.entity.toFutureJsValue.map(_.as[A]))
+    def handleAsResponse[A : Reads](implicit m: Materializer, ec: ExecutionContext): Future[Response[A]] = {
+      response.status match {
+        case s if s.isSuccess() => response.entity.toFutureJsValue.map {
+          case ResponseEntitySuccess(json) => json.validate[A] match {
+            case s: JsSuccess[A] => ResponseSuccess(s.get)
+            case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
+          }
+          case ResponseEntityFailure(e) => ResponseFailure(response.status, e)
+        }
+        case _ => response.entity.toFutureJsValue.map {
+          case ResponseEntitySuccess(json) => json.validate[models.Error] match {
+            case s: JsSuccess[A] => ResponseSuccess(s.get)
+            case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
+          }
+          case ResponseEntityFailure(e) => ResponseFailure(response.status, e)
+        }
+      }
     }
   }
 
+  sealed trait ResponseEntityType
+
+  case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityType
+  case class ResponseEntityFailure(e: Throwable) extends ResponseEntityType
+
   implicit class ResponseEntityExtensions(entity: ResponseEntity) {
-    def toFutureJsValue(implicit materializer: Materializer,
-                        ec: ExecutionContext): Future[JsValue] = {
-      entity.dataBytes.runReduce(_ concat _).map(bs => Json.parse(bs.toArray))
+    def toFutureJsValue(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityType] = {
+      entity.dataBytes.runReduce(_ concat _).map{bs => Try(Json.parse(bs.toArray)) match {
+        case Success(json) => ResponseEntitySuccess(json)
+        case Failure(e) => ResponseEntityFailure(e)
+      }}
     }
   }
 
