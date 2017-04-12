@@ -19,7 +19,11 @@ package object scaladon {
     )
   )
 
-  implicit val unitReads: Reads[Unit] = Reads[Unit](js => js.validate[JsObject].map(_ => ()))
+  //TODO: change?? this seems to work fine
+  implicit val unitReads: Reads[Unit] = Reads[Unit](js => js.validate[JsObject].map {
+    case s: JsObject if s == JsObject.empty => ()
+    case _ => throw new Exception("NOT AN EMPTY OBJECT")
+  })
 
   //region Wrappers
 

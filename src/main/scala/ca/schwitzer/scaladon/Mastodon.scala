@@ -64,7 +64,7 @@ class Mastodon private(baseURI: String,
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def getCurrentUserAccount(accessToken: AccessToken): Future[Response[Account]] = {
+  def getCurrentAccount(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
@@ -72,19 +72,19 @@ class Mastodon private(baseURI: String,
 
   //TODO: updateCurrentUserAccount()
 
-  def getFollowersOfAccount(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+  def getFollowers(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
   }
 
-  def getFollowingOfAccount(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+  def getFollowing(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
   }
 
-  def getStatusesOfAccount(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
+  def getStatuses(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
                           (accessToken: AccessToken): Future[Response[Seq[Status]]] = {
     val entity = Json.obj(
       "only_media" -> onlyMedia,
@@ -95,37 +95,37 @@ class Mastodon private(baseURI: String,
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Status]])
   }
 
-  def followAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def follow(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/follow")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def unfollowAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def unfollow(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unfollow")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def blockAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def block(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/block")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def unblockAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def unblock(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unblock")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def muteAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def mute(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/mute")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def unmuteAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def unmute(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unmute")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
@@ -199,6 +199,8 @@ class Mastodon private(baseURI: String,
 
   //region Media
 
+  //TODO: media upload. current attempts result in 422 & a cloudflare page about cookies. investigate.
+
   //endregion Media
 
 
@@ -234,6 +236,28 @@ class Mastodon private(baseURI: String,
 
   //endregion Notifications
 
+  //region Reports
+
+  def getReports(accessToken: AccessToken): Future[Response[Seq[Report]]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/reports")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Report]])
+  }
+
+  def report(accountId: Int, statusIds: Seq[Int], comment: String)
+                   (accessToken:AccessToken): Future[Response[Report]] = {
+    val entity = Json.obj(
+      "account_id" -> accountId,
+      "status_ids" -> statusIds,
+      "comment" -> comment
+    ).toJsonEntity
+    val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/reports", entity = entity)
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Report])
+  }
+
+  //endregion Reports
+
   //region Requests
 
   def getFollowRequests(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
@@ -262,15 +286,61 @@ class Mastodon private(baseURI: String,
 
   //endregion Requests
 
+  //region Search
+
+  def searchContent(query: String, resolveNonLocal: Boolean)
+                   (accessToken: AccessToken): Future[Response[Results]] = {
+    val entity = Json.obj(
+      "q" -> query,
+      "resolve" -> resolveNonLocal
+    ).toJsonEntity
+    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/search", entity = entity)
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Results])
+  }
+
+  //endregion Search
+
   //region Statuses
 
-  def postStatus(status: String,
-                 mediaIds: Seq[Int],
-                 sensitive: Boolean,
-                 inReplyToId: Option[Int] = None,
-                 spoilerText: Option[String] = None,
-                 visibility: StatusVisibility = StatusVisibilities.Public)
-                (accessToken: AccessToken): Future[Response[Status]] = {
+  def getStatus(id: Int)(accessToken: AccessToken): Future[Response[Status]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Status])
+  }
+
+  def getStatusContext(id: Int)(accessToken: AccessToken): Future[Response[Context]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/context")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Context])
+  }
+
+  def getStatusCard(id: Int)(accessToken: AccessToken): Future[Response[Card]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/card")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Card])
+  }
+
+  def getFavouritedBy(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/favourited_by")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
+  }
+
+  def getRebloggedBy(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/reblogged_by")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
+  }
+
+  //TODO: make public once media upload is fixed
+  private def postStatus(status: String,
+                         mediaIds: Seq[Int],
+                         sensitive: Boolean,
+                         inReplyToId: Option[Int] = None,
+                         spoilerText: Option[String] = None,
+                         visibility: StatusVisibility = StatusVisibilities.Public)
+                        (accessToken: AccessToken): Future[Response[Status]] = {
     val st = spoilerText.getOrElse("")
     val entity = Json.obj(
       "status" -> status,
@@ -286,11 +356,76 @@ class Mastodon private(baseURI: String,
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Status])
   }
 
-  def toot(status: String)(accessToken: AccessToken): Future[Response[Status]] = {
-    postStatus(status, Seq.empty, sensitive = false, None, None, StatusVisibilities.Public)(accessToken)
+  def toot(status: String,
+           inReplyToId: Option[Int] = None,
+           spoilerText: Option[String] = None,
+           visibility: StatusVisibility)
+          (accessToken: AccessToken): Future[Response[Status]] = {
+    postStatus(status, Seq.empty, sensitive = false, inReplyToId, spoilerText, visibility)(accessToken)
+  }
+
+  def deleteStatus(id: Int)(accessToken: AccessToken): Future[Response[Unit]] = {
+    val request = HttpRequest(method = HttpMethods.DELETE, uri = s"/api/v1/statuses/$id")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Unit])
+  }
+
+  def reblog(id: Int)(accessToken: AccessToken): Future[Response[Status]] = {
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/reblog")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Status])
+  }
+
+  def unreblog(id: Int)(accessToken: AccessToken): Future[Response[Status]] = {
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/unreblog")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Status])
+  }
+
+  def favourite(id: Int)(accessToken: AccessToken): Future[Response[Status]] = {
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/favourite")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Status])
+  }
+
+  def unfavourite(id: Int)(accessToken: AccessToken): Future[Response[Status]] = {
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/unfavourite")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Status])
   }
 
   //endregion Statuses
+
+  //region Timelines
+
+  def getHomeTimeline(localOnly: Boolean)(accessToken: AccessToken): Future[Response[Seq[Status]]] = {
+    val entity = Json.obj(
+      "local" -> localOnly
+    ).toJsonEntity
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/home", entity = entity)
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Status]])
+  }
+
+  def getPublicTimeline(localOnly: Boolean)(accessToken: AccessToken): Future[Response[Seq[Status]]] = {
+    val entity = Json.obj(
+      "local" -> localOnly
+    ).toJsonEntity
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/public", entity = entity)
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Status]])
+  }
+
+  def getHashtagTimeline(hashtag: String, localOnly: Boolean)(accessToken: AccessToken): Future[Response[Seq[Status]]] = {
+    val entity = Json.obj(
+      "local" -> localOnly
+    ).toJsonEntity
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/tag/$hashtag", entity = entity)
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Status]])
+  }
+
+  //endregion Timelines
 }
 
 object Mastodon {
