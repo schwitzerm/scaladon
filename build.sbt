@@ -2,7 +2,7 @@ scalaVersion := "2.12.1"
 
 name := "scaladon"
 organization := "ca.schwitzer"
-version := "0.0.2"
+version := "0.1.0"
 
 libraryDependencies ++= Seq(
   //http & streams
