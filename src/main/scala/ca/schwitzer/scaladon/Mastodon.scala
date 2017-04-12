@@ -214,6 +214,12 @@ class Mastodon private(baseURI: String,
 
   //region Notifications
 
+  def clearNotifications(accessToken: AccessToken): Future[Response[Unit]] = {
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/notifications/clear")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Unit])
+  }
+
   def getNotification(id: Int)(accessToken: AccessToken): Future[Response[Notification]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/notifications/$id")
 
@@ -236,28 +242,22 @@ class Mastodon private(baseURI: String,
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
   }
 
-  def authorizeFollowRequest(id: Int)(accessToken: AccessToken): Future[Unit] = {
+  def authorizeFollowRequest(id: Int)(accessToken: AccessToken): Future[Response[Unit]] = {
     val entity = Json.obj(
       "id" -> id
     ).toJsonEntity
     val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/authorize", entity = entity)
 
-    makeAuthorizedRequest(request, accessToken).map {
-      case xhr if xhr.status.isSuccess() => ()
-      case xhr => throw new Exception(s"HttpRequest failed with error: ${xhr.status}")
-    }
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Unit])
   }
 
-  def rejectFollowRequest(id: Int)(accessToken: AccessToken): Future[Unit] = {
+  def rejectFollowRequest(id: Int)(accessToken: AccessToken): Future[Response[Unit]] = {
     val entity = Json.obj(
       "id" -> id
     ).toJsonEntity
     val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/reject", entity = entity)
 
-    makeAuthorizedRequest(request, accessToken).map {
-      case xhr if xhr.status.isSuccess() => ()
-      case xhr => throw new Exception(s"HttpRequest failed with error: ${xhr.status}")
-    }
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Unit])
   }
 
   //endregion Requests

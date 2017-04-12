@@ -19,6 +19,8 @@ package object scaladon {
     )
   )
 
+  implicit val unitReads: Reads[Unit] = Reads[Unit](js => js.validate[JsObject].map(_ => ()))
+
   //region Wrappers
 
   sealed abstract class Response[+A] extends Product with Serializable {
