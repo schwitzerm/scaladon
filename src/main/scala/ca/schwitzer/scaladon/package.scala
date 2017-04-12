@@ -57,7 +57,7 @@ package object scaladon {
         }
         case _ => response.entity.toResponseEntityWrapper.map {
           case ResponseEntitySuccess(json) => json.validate[models.Error] match {
-            case s: JsSuccess[A] => ResponseSuccess(s.get)
+            case s: JsSuccess[models.Error] => ResponseFailure(response.status, new Exception(s"Error from Mastodon instance: ${s.get.error}"))
             case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
           }
           case ResponseEntityFailure(e) => ResponseFailure(response.status, e)

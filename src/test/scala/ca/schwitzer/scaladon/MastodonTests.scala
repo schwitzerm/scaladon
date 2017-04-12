@@ -20,7 +20,7 @@ class MastodonTests extends FlatSpec with Matchers with ScalaFutures {
   whenReady(Mastodon.createApp("marxism.party", "tooter")) { mastodon =>
     whenReady(mastodon.login("schwitzerm@gmail.com", System.getenv("TOOTERPASS"))) { accessToken =>
       "Mastodon" should "fetch all the statuses for account id 1" in {
-        whenReady(mastodon.getStatusesOfAccount(1)(accessToken)) {
+        whenReady(mastodon.getStatusesOfAccount(100000)(accessToken)) {
           case ResponseSuccess(statuses) => println(statuses.length)
           case ResponseFailure(status, e) => throw e
         }
