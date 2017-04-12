@@ -48,14 +48,14 @@ package object scaladon {
   implicit class HttpResponseExtensions(response: HttpResponse) {
     def handleAsResponse[A : Reads](implicit m: Materializer, ec: ExecutionContext): Future[Response[A]] = {
       response.status match {
-        case s if s.isSuccess() => response.entity.toFutureJsValue.map {
+        case s if s.isSuccess() => response.entity.toResponseEntityWrapper.map {
           case ResponseEntitySuccess(json) => json.validate[A] match {
             case s: JsSuccess[A] => ResponseSuccess(s.get)
             case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
           }
           case ResponseEntityFailure(e) => ResponseFailure(response.status, e)
         }
-        case _ => response.entity.toFutureJsValue.map {
+        case _ => response.entity.toResponseEntityWrapper.map {
           case ResponseEntitySuccess(json) => json.validate[models.Error] match {
             case s: JsSuccess[A] => ResponseSuccess(s.get)
             case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
@@ -67,7 +67,11 @@ package object scaladon {
   }
 
   implicit class ResponseEntityExtensions(entity: ResponseEntity) {
-    def toFutureJsValue(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
+    def toJsValue(implicit m: Materializer, ec: ExecutionContext): Future[JsValue] = {
+      entity.dataBytes.runReduce(_ concat _).map(bs => Json.parse(bs.toArray))
+    }
+
+    def toResponseEntityWrapper(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
       entity.dataBytes.runReduce(_ concat _).map{bs => Try(Json.parse(bs.toArray)) match {
         case Success(json) => ResponseEntitySuccess(json)
         case Failure(e) => ResponseEntityFailure(e)

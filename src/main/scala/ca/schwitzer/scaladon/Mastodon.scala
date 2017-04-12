@@ -50,11 +50,9 @@ class Mastodon private(baseURI: String,
     ).toJsonEntity
     val request = HttpRequest(method = HttpMethods.POST, uri = "/oauth/token", entity = entity)
 
-    makeRequest(request).flatMap(xhr => xhr.entity.toFutureJsValue.map {
-      case ResponseEntitySuccess(json) =>
+    makeRequest(request).flatMap(xhr => xhr.entity.toJsValue.map { json =>
         val token = (json \ "access_token").as[String]
         AccessToken(HttpCredentials.createOAuth2BearerToken(token))
-      case ResponseEntityFailure(e) => throw e
     })
   }
 
