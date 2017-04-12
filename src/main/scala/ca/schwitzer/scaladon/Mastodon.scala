@@ -201,6 +201,33 @@ class Mastodon private(baseURI: String,
 
   //endregion Media
 
+
+  //region Mutes
+
+  def getMutes(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/mutes")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
+  }
+
+  //endregion Mutes
+
+  //region Notifications
+
+  def getNotification(id: Int)(accessToken: AccessToken): Future[Response[Notification]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/notifications/$id")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Notification])
+  }
+
+  def getNotifications(accessToken: AccessToken): Future[Response[Seq[Notification]]] = {
+    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/notifications")
+
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Notification]])
+  }
+
+  //endregion Notifications
+
   //region Requests
 
   def getFollowRequests(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
