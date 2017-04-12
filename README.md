@@ -1,4 +1,8 @@
 # scaladon
+A Mastodon social network API implementation in Scala using Akka HTTP and Akka Streams.
+
+This project is in it's infancy, but is ready for more testing.
+
 ```scala
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -37,10 +41,6 @@ object MyMastodonApp extends App {
   }
 }
 ```
-
-A Mastodon social network API implementation in Scala using Akka HTTP and Akka Streams.
-
-This project is in it's infancy, but is ready for more testing.
 
 
 
