@@ -13,6 +13,14 @@ package object scaladon {
 
   final val dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
 
+  implicit val dateReads: Reads[DateTime] = Reads[DateTime](js =>
+    js.validate[String].map(str =>
+      DateTime.parse(str, DateTimeFormat.forPattern(dateFormat))
+    )
+  )
+
+  //region Wrappers
+
   sealed abstract class Response[+A] extends Product with Serializable {
     def get: A
   }
@@ -25,17 +33,17 @@ package object scaladon {
     override def get = throw new NoSuchElementException("ResponseFailure.get")
   }
 
-  implicit val dateReads: Reads[DateTime] = Reads[DateTime](js =>
-    js.validate[String].map(str =>
-      DateTime.parse(str, DateTimeFormat.forPattern(dateFormat))
-    )
-  )
-
   implicit class JsValueExtensions(json: JsValue) {
     def toJsonEntity: RequestEntity = {
       HttpEntity(ContentTypes.`application/json`, json.toString())
     }
   }
+
+  private sealed abstract class ResponseEntityWrapper
+  private case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityWrapper
+  private case class ResponseEntityFailure(e: Throwable) extends ResponseEntityWrapper
+
+  //endregion Wrappers
 
   implicit class HttpResponseExtensions(response: HttpResponse) {
     def handleAsResponse[A : Reads](implicit m: Materializer, ec: ExecutionContext): Future[Response[A]] = {
@@ -58,13 +66,8 @@ package object scaladon {
     }
   }
 
-  sealed trait ResponseEntityType
-
-  case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityType
-  case class ResponseEntityFailure(e: Throwable) extends ResponseEntityType
-
   implicit class ResponseEntityExtensions(entity: ResponseEntity) {
-    def toFutureJsValue(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityType] = {
+    def toFutureJsValue(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
       entity.dataBytes.runReduce(_ concat _).map{bs => Try(Json.parse(bs.toArray)) match {
         case Success(json) => ResponseEntitySuccess(json)
         case Failure(e) => ResponseEntityFailure(e)
