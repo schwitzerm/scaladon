@@ -58,7 +58,7 @@ class Mastodon private(baseURI: String,
 
   //region Accounts
 
-  def getAccount(id: Int, accessToken: AccessToken): Future[Response[Account]] = {
+  def getAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
@@ -72,13 +72,13 @@ class Mastodon private(baseURI: String,
 
   //TODO: updateCurrentUserAccount()
 
-  def getFollowersOfAccount(id: Int, accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+  def getFollowersOfAccount(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
   }
 
-  def getFollowingOfAccount(id: Int, accessToken: AccessToken): Future[Response[Seq[Account]]] = {
+  def getFollowingOfAccount(id: Int)(accessToken: AccessToken): Future[Response[Seq[Account]]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Account]])
@@ -95,13 +95,13 @@ class Mastodon private(baseURI: String,
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Status]])
   }
 
-  def followAccount(id: Int, accessToken: AccessToken): Future[Response[Account]] = {
+  def followAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/follow")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
-  def unfollowAccount(id: Int, accessToken: AccessToken): Future[Response[Account]] = {
+  def unfollowAccount(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unfollow")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
