@@ -46,7 +46,7 @@ class Mastodon private(baseURI: String,
       "grant_type" -> "password",
       "username" -> username,
       "password" -> password,
-      "scopes" -> scopes.mkString(" ")
+      "scope" -> scopes.mkString(" ")
     ).toJsonEntity
     val request = HttpRequest(method = HttpMethods.POST, uri = "/oauth/token", entity = entity)
 
