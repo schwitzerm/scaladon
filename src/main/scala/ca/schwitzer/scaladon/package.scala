@@ -39,9 +39,9 @@ package object scaladon {
     }
   }
 
-  private sealed abstract class ResponseEntityWrapper
-  private case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityWrapper
-  private case class ResponseEntityFailure(e: Throwable) extends ResponseEntityWrapper
+  protected sealed abstract class ResponseEntityWrapper
+  protected case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityWrapper
+  protected case class ResponseEntityFailure(e: Throwable) extends ResponseEntityWrapper
 
   //endregion Wrappers
 
