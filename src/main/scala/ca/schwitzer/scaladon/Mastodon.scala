@@ -99,37 +99,37 @@ class Mastodon private(baseURI: String,
   }
 
   def follow(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/follow")
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/follow")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
   def unfollow(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unfollow")
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unfollow")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
   def block(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/block")
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/block")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
   def unblock(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unblock")
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unblock")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
   def mute(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/mute")
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/mute")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
 
   def unmute(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/unmute")
+    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unmute")
 
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
   }
