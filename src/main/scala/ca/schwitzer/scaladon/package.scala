@@ -45,9 +45,9 @@ package object scaladon {
     }
   }
 
-  protected sealed abstract class ResponseEntityWrapper
-  protected case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityWrapper
-  protected case class ResponseEntityFailure(e: Throwable) extends ResponseEntityWrapper
+  sealed abstract class ResponseEntityWrapper
+  case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityWrapper
+  case class ResponseEntityFailure(e: Throwable) extends ResponseEntityWrapper
 
   //endregion Wrappers
 
@@ -73,15 +73,18 @@ package object scaladon {
   }
 
   implicit class ResponseEntityExtensions(entity: ResponseEntity) {
-    def toJsValue(implicit m: Materializer, ec: ExecutionContext): Future[JsValue] = {
-      entity.dataBytes.runReduce(_ concat _).map(bs => Json.parse(bs.toArray))
+    def toJsValue(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
+      entity.dataBytes.runReduce(_ concat _).map(bs => Try(Json.parse(bs.toArray)) match {
+        case Success(json) => ResponseEntitySuccess(json)
+        case Failure(e) => ResponseEntityFailure(e)
+      })
     }
 
     def toResponseEntityWrapper(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
-      entity.dataBytes.runReduce(_ concat _).map{bs => Try(Json.parse(bs.toArray)) match {
+      entity.dataBytes.runReduce(_ concat _).map(bs => Try(Json.parse(bs.toArray)) match {
         case Success(json) => ResponseEntitySuccess(json)
         case Failure(e) => ResponseEntityFailure(e)
-      }}
+      })
     }
   }
 
