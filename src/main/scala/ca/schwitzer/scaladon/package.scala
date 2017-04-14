@@ -25,18 +25,25 @@ package object scaladon {
     case _ => throw new Exception("NOT AN EMPTY OBJECT")
   })
 
-  //region Wrappers
-
-  sealed abstract class Response[+A] extends Product with Serializable {
-    def get: A
-  }
-
-  case class ResponseSuccess[A](value: A) extends Response[A] {
-    override def get: A = value
-  }
-
-  case class ResponseFailure(statusCode: StatusCode, throwable: Throwable) extends Response[Nothing] {
-    override def get = throw new NoSuchElementException("ResponseFailure.get")
+  implicit class HttpResponseExtensions(response: HttpResponse) {
+    def handleAs[A : Reads](implicit m: Materializer, ec: ExecutionContext): Future[MastodonResponse[A]] = {
+      response.status match {
+        case s if s.isSuccess() => response.entity.toJsValue.map {
+          case MastodonResponses.Success(json) => json.validate[A] match {
+            case JsSuccess(elem, _) => MastodonResponses.Success(elem)
+            case e: JsError => MastodonErrors.JSONValidationError(e.errors, new Exception("Error validating response JSON."))
+          }
+          case e: MastodonError => e
+        }
+        case s if s.isFailure() => response.entity.toJsValue.map {
+          case MastodonResponses.Success(json) => json.validate[models.Error] match {
+            case JsSuccess(error, _) => MastodonErrors.ResponseError(response.status, new Exception(error.error))
+            case e: JsError => MastodonErrors.ResponseError(response.status, new Exception("An unknown error has occurred."))
+          }
+          case e: MastodonError => e
+        }
+      }
+    }
   }
 
   implicit class JsValueExtensions(json: JsValue) {
@@ -45,45 +52,11 @@ package object scaladon {
     }
   }
 
-  sealed abstract class ResponseEntityWrapper
-  case class ResponseEntitySuccess(json: JsValue) extends ResponseEntityWrapper
-  case class ResponseEntityFailure(e: Throwable) extends ResponseEntityWrapper
-
-  //endregion Wrappers
-
-  implicit class HttpResponseExtensions(response: HttpResponse) {
-    def handleAsResponse[A : Reads](implicit m: Materializer, ec: ExecutionContext): Future[Response[A]] = {
-      response.status match {
-        case s if s.isSuccess() => response.entity.toResponseEntityWrapper.map {
-          case ResponseEntitySuccess(json) => json.validate[A] match {
-            case s: JsSuccess[A] => ResponseSuccess(s.get)
-            case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
-          }
-          case ResponseEntityFailure(e) => ResponseFailure(response.status, e)
-        }
-        case _ => response.entity.toResponseEntityWrapper.map {
-          case ResponseEntitySuccess(json) => json.validate[models.Error] match {
-            case s: JsSuccess[models.Error] => ResponseFailure(response.status, new Exception(s"Error from Mastodon instance: ${s.get.error}"))
-            case e: JsError => ResponseFailure(response.status, new Exception(JsError.toJson(e).toString))
-          }
-          case ResponseEntityFailure(e) => ResponseFailure(response.status, e)
-        }
-      }
-    }
-  }
-
   implicit class ResponseEntityExtensions(entity: ResponseEntity) {
-    def toJsValue(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
+    def toJsValue(implicit m: Materializer, ec: ExecutionContext): Future[MastodonResponse[JsValue]] = {
       entity.dataBytes.runReduce(_ concat _).map(bs => Try(Json.parse(bs.toArray)) match {
-        case Success(json) => ResponseEntitySuccess(json)
-        case Failure(e) => ResponseEntityFailure(e)
-      })
-    }
-
-    def toResponseEntityWrapper(implicit m: Materializer, ec: ExecutionContext): Future[ResponseEntityWrapper] = {
-      entity.dataBytes.runReduce(_ concat _).map(bs => Try(Json.parse(bs.toArray)) match {
-        case Success(json) => ResponseEntitySuccess(json)
-        case Failure(e) => ResponseEntityFailure(e)
+        case Success(json) => MastodonResponses.Success(json)
+        case Failure(e) => MastodonErrors.JSONParseError(e)
       })
     }
   }
