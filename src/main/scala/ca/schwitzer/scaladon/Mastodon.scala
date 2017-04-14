@@ -98,40 +98,40 @@ class Mastodon private(baseURI: String,
     makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Seq[Status]])
   }
 
-  def follow(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def follow(id: Int)(accessToken: AccessToken): Future[Response[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/follow")
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Relationship])
   }
 
-  def unfollow(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def unfollow(id: Int)(accessToken: AccessToken): Future[Response[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unfollow")
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Relationship])
   }
 
-  def block(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def block(id: Int)(accessToken: AccessToken): Future[Response[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/block")
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Relationship])
   }
 
-  def unblock(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def unblock(id: Int)(accessToken: AccessToken): Future[Response[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unblock")
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Relationship])
   }
 
-  def mute(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def mute(id: Int)(accessToken: AccessToken): Future[Response[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/mute")
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Relationship])
   }
 
-  def unmute(id: Int)(accessToken: AccessToken): Future[Response[Account]] = {
+  def unmute(id: Int)(accessToken: AccessToken): Future[Response[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unmute")
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Account])
+    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAsResponse[Relationship])
   }
 
   def getAccountRelationships(ids: Seq[Int] = Seq.empty)
