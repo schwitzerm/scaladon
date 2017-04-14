@@ -360,9 +360,9 @@ class Mastodon private(baseURI: String,
   }
 
   def toot(status: String,
+           visibility: StatusVisibility,
            inReplyToId: Option[Int] = None,
-           spoilerText: Option[String] = None,
-           visibility: StatusVisibility)
+           spoilerText: Option[String] = None)
           (accessToken: AccessToken): Future[MastodonResponse[Status]] = {
     postStatus(status, Seq.empty, sensitive = false, inReplyToId, spoilerText, visibility)(accessToken)
   }
