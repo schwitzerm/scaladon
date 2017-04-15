@@ -19,25 +19,14 @@ object MyMastodonApp extends App {
   implicit val materializer = ActorMaterializer() //and an ActorMaterializer
 
   val appFuture = Mastodon.createApp("marxism.party", "myapp")
-
-  val statusFuture: Future[Status] = appFuture.flatMap { app =>
-    app.login("my_cool@email.com", "thisshouldreallybesupersecure").flatMap { accessToken =>
-      app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(accessToken).map {
-        case MastodonResponses.Success(status) => status
-        case error: MastodonError => throw error.asThrowable //or send to error handler, or log, or print status etcetc  
-      }
-    }
-  }
-
-  --OR--
-
+  val tokenFuture = appFuture.flatMap(_.login("my_cool@email.com", "thisshouldreallybesupersecure"))
+  
   val statusFuture: Future[Status] = for {
-    app <- Mastodon.createApp("marxism.party", "myapp")
-    accessToken <- app.login("my_cool@email.com", "thisshouldreallybesupersecure")
-    response <- app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(accessToken)
-  } yield response match {
+    app <- appFuture,
+    token <- tokenFuture,
+  } yield app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(accessToken).map {
     case MastodonResponses.Success(status) => status
-    case error: MastodonError => throw error.asThrowable //or send to error handler, or log, or print status etcetc
+    case error: MastodonError => throw error.asThrowable //or send to error handler, or log, or print status etcetc  
   }
 }
 ```
