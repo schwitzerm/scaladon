@@ -24,7 +24,7 @@ object MyMastodonApp extends App {
   val statusFuture: Future[Status] = for {
     app <- appFuture,
     token <- tokenFuture,
-  } yield app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(accessToken).map {
+  } yield app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(token).map {
     case MastodonResponses.Success(status) => status
     case error: MastodonError => throw error.asThrowable //or send to error handler, or log, or print status etcetc  
   }
