@@ -184,7 +184,7 @@ class Mastodon private(baseURI: String,
   object Follows {
     def follow(userUri: String)(token: AccessToken): Future[MastodonResponse[Account]] = {
       val entity = Json.obj(
-        "uri" -> uri
+        "uri" -> userUri
       ).toJsonEntity
       val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follows", entity = entity)
 
@@ -212,7 +212,7 @@ class Mastodon private(baseURI: String,
     def clear(token: AccessToken): Future[MastodonResponse[Unit]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/notifications/clear")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Unit])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
     }
 
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Notification]]] = {
