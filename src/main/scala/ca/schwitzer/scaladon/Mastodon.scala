@@ -39,21 +39,32 @@ class Mastodon private(baseURI: String,
     def fetchCurrent(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Account])
     }
 
     //TODO: def updateInformation()
 
-    def fetchFollowers(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+    def fetchFollowers(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
 
-    def fetchFollowing(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+    def fetchFollowing(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
+
+    def fetchStatuses(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
+                     (token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+      val entity = Json.obj(
+        "only_media" -> onlyMedia,
+        "exclude_replies" -> excludeReplies
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/statuses", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
     }
   }
 
@@ -88,17 +99,6 @@ class Mastodon private(baseURI: String,
   }
 
   //region Accounts
-  def getStatuses(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
-                          (accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
-    val entity = Json.obj(
-      "only_media" -> onlyMedia,
-      "exclude_replies" -> excludeReplies
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/statuses", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
-  }
-
   def follow(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Relationship]] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/follow")
 
