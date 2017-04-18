@@ -21,12 +21,52 @@ class Mastodon private(baseURI: String,
                ec: ExecutionContext) {
   private val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] = Http().outgoingConnectionHttps(baseURI)
 
+  /**
+    * Makes a non-authorized request to the Mastodon instance.
+    * @param request The request to send to the Mastodon instance.
+    * @return A future HttpResponse.
+    */
   private def makeRequest(request: HttpRequest): Future[HttpResponse] = {
     Source.single(request).via(flow).runWith(Sink.head)
   }
 
-  private def makeAuthorizedRequest(request: HttpRequest, accessToken: AccessToken): Future[HttpResponse] = {
-    Source.single(request.addCredentials(accessToken.credentials)).via(flow).runWith(Sink.head)
+  /**
+    * Makes an authorized request to the Mastodon instance.
+    * @param request The request to send to the Mastodon instance.
+    * @param token The AccessToken of the authenticated user.
+    * @return A future HttpResponse.
+    */
+  private def makeAuthorizedRequest(request: HttpRequest, token: AccessToken): Future[HttpResponse] = {
+    Source.single(request.addCredentials(token.credentials)).via(flow).runWith(Sink.head)
+  }
+
+  /**
+    * Logs the user into the Mastodon instance and returns a future access token.
+    * @param username The username to log in with (for Mastodon, this is the account's e-mail address)
+    * @param password The password of the user.
+    * @param scopes The scopes to use when logging in.
+    * @return A future access token.
+    */
+  def login(username: String,
+            password: String,
+            scopes: Seq[String] = Seq("read", "write", "follow")): Future[AccessToken] = {
+    val entity = Json.obj(
+      "client_id" -> appCredentials.clientId,
+      "client_secret" -> appCredentials.clientSecret,
+      "grant_type" -> "password",
+      "username" -> username,
+      "password" -> password,
+      "scope" -> scopes.mkString(" ")
+    ).toJsonEntity
+    val request = HttpRequest(method = HttpMethods.POST, uri = "/oauth/token", entity = entity)
+
+    makeRequest(request).flatMap(xhr => xhr.entity.toJsValue.map {
+      case MastodonResponses.Success(json) =>
+        val token = (json \ "access_token").as[String]
+        AccessToken(HttpCredentials.createOAuth2BearerToken(token))
+
+      case error: MastodonError => throw error.asThrowable
+    })
   }
 
   object Accounts {
@@ -123,36 +163,6 @@ class Mastodon private(baseURI: String,
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
-  }
-
-  /**
-    * Logs the user into the Mastodon instance and returns a future access token.
-    *
-    * @param username The username to log in with (for Mastodon, this is the account's e-mail address)
-    * @param password The password of the user.
-    * @param scopes The scopes to use when logging in.
-    * @return A future access token.
-    */
-  def login(username: String,
-            password: String,
-            scopes: Seq[String] = Seq("read", "write", "follow")): Future[AccessToken] = {
-    val entity = Json.obj(
-      "client_id" -> appCredentials.clientId,
-      "client_secret" -> appCredentials.clientSecret,
-      "grant_type" -> "password",
-      "username" -> username,
-      "password" -> password,
-      "scope" -> scopes.mkString(" ")
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = "/oauth/token", entity = entity)
-
-    makeRequest(request).flatMap(xhr => xhr.entity.toJsValue.map {
-        case MastodonResponses.Success(json) =>
-          val token = (json \ "access_token").as[String]
-          AccessToken(HttpCredentials.createOAuth2BearerToken(token))
-
-        case error: MastodonError => throw error.asThrowable
-    })
   }
 
   //region Blocks
