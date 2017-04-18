@@ -82,12 +82,6 @@ class Mastodon private(baseURI: String,
   }
 
   //region Accounts
-  def getFollowers(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
-  }
-
   def getFollowing(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
 
