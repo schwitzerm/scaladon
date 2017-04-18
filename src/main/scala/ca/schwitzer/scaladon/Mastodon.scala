@@ -192,22 +192,13 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Instances
+  object Instances {
+    def fetchInformation: Future[MastodonResponse[Instance]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/instance")
 
-  def getInstanceInformation: Future[MastodonResponse[Instance]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/instance")
-
-    makeRequest(request).flatMap(_.handleAs[Instance])
+      makeRequest(request).flatMap(_.handleAs[Instance])
+    }
   }
-
-  //endregion Instances
-
-  //region Media
-
-  //TODO: media upload. current attempts result in 422 & a cloudflare page about cookies. investigate.
-
-  //endregion Media
-
 
   //region Mutes
 
