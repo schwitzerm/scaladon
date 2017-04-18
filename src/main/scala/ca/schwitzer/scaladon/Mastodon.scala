@@ -166,33 +166,31 @@ class Mastodon private(baseURI: String,
   }
 
   object Blocks {
-    def fetch(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/blocks")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
   }
 
   object Favourites {
-    def fetch(accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/favourites")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
     }
   }
 
-  //region Follows
+  object Follows {
+    def follow(userUri: String)(token: AccessToken): Future[MastodonResponse[Account]] = {
+      val entity = Json.obj(
+        "uri" -> uri
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follows", entity = entity)
 
-  def followUser(uri: String)(accessToken: AccessToken): Future[MastodonResponse[Account]] = {
-    val entity = Json.obj(
-      "uri" -> uri
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follows", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Account])
+    }
   }
-
-  //endregion Follows
 
   //region Instances
 
