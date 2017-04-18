@@ -173,15 +173,13 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Favourites
+  object Favourites {
+    def fetch(accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/favourites")
 
-  def getFavourites(accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/favourites")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
+    }
   }
-
-  //endregion Favourites
 
   //region Follows
 
