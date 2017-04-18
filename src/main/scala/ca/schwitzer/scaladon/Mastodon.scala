@@ -49,6 +49,12 @@ class Mastodon private(baseURI: String,
 
       makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
     }
+
+    def fetchFollowing(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+    }
   }
 
   /**
@@ -82,12 +88,6 @@ class Mastodon private(baseURI: String,
   }
 
   //region Accounts
-  def getFollowing(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
-  }
-
   def getStatuses(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
                           (accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
     val entity = Json.obj(
