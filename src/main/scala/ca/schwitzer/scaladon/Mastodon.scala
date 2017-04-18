@@ -200,15 +200,13 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Mutes
+  object Mutes {
+    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/mutes")
 
-  def getMutes(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/mutes")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
   }
-
-  //endregion Mutes
 
   //region Notifications
 
