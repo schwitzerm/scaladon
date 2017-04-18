@@ -29,6 +29,14 @@ class Mastodon private(baseURI: String,
     Source.single(request.addCredentials(accessToken.credentials)).via(flow).runWith(Sink.head)
   }
 
+  object Accounts {
+    def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Account]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
+    }
+  }
+
   /**
     * Logs the user into the Mastodon instance and returns a future access token.
     *
@@ -60,12 +68,6 @@ class Mastodon private(baseURI: String,
   }
 
   //region Accounts
-
-  def getAccount(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
-  }
 
   def getCurrentAccount(accessToken: AccessToken): Future[MastodonResponse[Account]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
