@@ -208,27 +208,25 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Notifications
+  object Notifications {
+    def clear(token: AccessToken): Future[MastodonResponse[Unit]] = {
+      val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/notifications/clear")
 
-  def clearNotifications(accessToken: AccessToken): Future[MastodonResponse[Unit]] = {
-    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/notifications/clear")
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Unit])
+    }
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Unit])
+    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Notification]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/notifications")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Notification]])
+    }
+
+    def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Notification]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/notifications/$id")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Notification])
+    }
   }
-
-  def getNotification(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Notification]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/notifications/$id")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Notification])
-  }
-
-  def getNotifications(accessToken: AccessToken): Future[MastodonResponse[Seq[Notification]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/notifications")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Notification]])
-  }
-
-  //endregion Notifications
 
   //region Reports
 
