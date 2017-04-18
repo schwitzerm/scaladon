@@ -165,15 +165,13 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Blocks
+  object Blocks {
+    def fetch(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/blocks")
 
-  def getBlocks(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/blocks")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+    }
   }
-
-  //endregion Blocks
 
   //region Favourites
 
