@@ -112,6 +112,17 @@ class Mastodon private(baseURI: String,
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Relationship]])
     }
+
+    def search(query: String, limit: Int = 40)
+              (token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "q" -> query,
+        "limit" -> limit
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/search", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
   }
 
   /**
@@ -143,20 +154,6 @@ class Mastodon private(baseURI: String,
         case error: MastodonError => throw error.asThrowable
     })
   }
-
-  //region Accounts
-  def searchAccounts(query: String, limit: Int = 40)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val entity = Json.obj(
-      "q" -> query,
-      "limit" -> limit
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/search", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
-  }
-
-
-  //endregion Accounts
 
   //region Blocks
 
