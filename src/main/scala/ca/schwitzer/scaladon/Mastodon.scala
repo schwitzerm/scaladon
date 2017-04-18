@@ -228,27 +228,25 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Reports
+  object Reports {
+    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Report]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/reports")
 
-  def getReports(accessToken: AccessToken): Future[MastodonResponse[Seq[Report]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/reports")
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Report]])
+    }
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Report]])
+    def report(accountId: Int, statusIds: Seq[Int], comment: String)
+              (token: AccessToken): Future[MastodonResponse[Report]] = {
+      val entity = Json.obj(
+        "account_id" -> accountId,
+        "status_ids" -> statusIds,
+        "comment" -> comment
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/reports", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Report])
+    }
   }
-
-  def report(accountId: Int, statusIds: Seq[Int], comment: String)
-                   (accessToken:AccessToken): Future[MastodonResponse[Report]] = {
-    val entity = Json.obj(
-      "account_id" -> accountId,
-      "status_ids" -> statusIds,
-      "comment" -> comment
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/reports", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Report])
-  }
-
-  //endregion Reports
 
   //region Requests
 
