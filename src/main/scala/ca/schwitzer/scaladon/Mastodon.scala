@@ -35,6 +35,12 @@ class Mastodon private(baseURI: String,
 
       makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
     }
+
+    def fetchCurrent(token: AccessToken): Future[MastodonResponse[Account]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
+    }
   }
 
   /**
@@ -68,13 +74,6 @@ class Mastodon private(baseURI: String,
   }
 
   //region Accounts
-
-  def getCurrentAccount(accessToken: AccessToken): Future[MastodonResponse[Account]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Account])
-  }
-
   //TODO: updateCurrentUserAccount()
 
   def getFollowers(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
