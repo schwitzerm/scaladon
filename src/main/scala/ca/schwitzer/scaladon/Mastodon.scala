@@ -102,6 +102,16 @@ class Mastodon private(baseURI: String,
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
+
+    def fetchRelationships(ids: Seq[Int] = Seq.empty)
+                          (token: AccessToken): Future[MastodonResponse[Seq[Relationship]]] = {
+      val entity = Json.obj(
+        "id" -> ids
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/relationships", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Relationship]])
+    }
   }
 
   /**
@@ -135,16 +145,6 @@ class Mastodon private(baseURI: String,
   }
 
   //region Accounts
-  def getAccountRelationships(ids: Seq[Int] = Seq.empty)
-                             (accessToken: AccessToken): Future[MastodonResponse[Seq[Relationship]]] = {
-    val entity = Json.obj(
-      "id" -> ids
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/relationships", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Relationship]])
-  }
-
   def searchAccounts(query: String, limit: Int = 40)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
     val entity = Json.obj(
       "q" -> query,
