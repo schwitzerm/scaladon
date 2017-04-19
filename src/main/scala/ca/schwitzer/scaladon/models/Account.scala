@@ -44,14 +44,17 @@ case class AccountUpdateData(displayName: Option[String],
                              header: Option[String])
 
 object AccountUpdateData {
-  implicit val writes: Writes[AccountUpdateData] = (data: AccountUpdateData) => {
-    val mappings = Seq(
-      "display_name" -> data.displayName,
-      "note" -> data.note,
-      "avatar" -> data.avatar,
-      "header" -> data.header
-    ).collect { case (key, opt) if opt.nonEmpty => key -> Json.toJsFieldJsValueWrapper(opt.get) }
+  //noinspection ConvertExpressionToSAM
+  implicit val writes: Writes[AccountUpdateData] = new Writes[AccountUpdateData] {
+    override def writes(o: AccountUpdateData): JsValue = {
+      val mappings = Seq(
+        "display_name" -> o.displayName,
+        "note" -> o.note,
+        "avatar" -> o.avatar,
+        "header" -> o.header
+      ).collect { case (key, opt) if opt.nonEmpty => key -> Json.toJsFieldJsValueWrapper(opt.get) }
 
-    Json.obj(mappings: _*)
+      Json.obj(mappings: _*)
+    }
   }
 }

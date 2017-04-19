@@ -3,12 +3,21 @@ A Mastodon social network API implementation in Scala using Akka HTTP and Akka S
 
 This project is in its infancy, but is ready for more testing.
 
+Currently supports Scala 2.12, 
+
 
 
 # What doesn't work
 Uploading media, changing user settings (display name/e-mail/avatar/header), and posting toots with attachments.
 
 I seek to resolve this swiftly.
+
+
+
+# Including in a project
+Simply add the following to your build.sbt file:
+
+```libraryDependencies += "ca.schwitzer" %% "scaladon" % "0.3.0"```
 
 
 
