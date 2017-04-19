@@ -3,6 +3,17 @@ A Mastodon social network API implementation in Scala using Akka HTTP and Akka S
 
 This project is in its infancy, but is ready for more testing.
 
+
+
+# What doesn't work
+Uploading media, changing user settings (display name/e-mail/avatar/header), and posting toots with attachments.
+
+I seek to resolve this swiftly.
+
+
+
+# Examples
+Tooting a status (using map/flatMap):
 ```scala
 package ca.schwitzer.scaladon
 
@@ -18,25 +29,49 @@ object MyMastodonApp extends App {
   implicit val system = ActorSystem() //an ActorSystem
   implicit val materializer = ActorMaterializer() //and an ActorMaterializer
 
-  val appFuture = Mastodon.createApp("marxism.party", "myapp")
-  val tokenFuture = appFuture.flatMap(_.login("my_cool@email.com", "thisshouldreallybesupersecure"))
+  val appFuture = Mastodon.createApp("marxism.party", "mycoolapp")
+  val tokenFuture = appFuture.flatMap(_.login("my_cool@email.com", "thisshouldreallybsupersecure"))
   
-  val statusFuture: Future[Status] = for {
-    app <- appFuture,
-    token <- tokenFuture,
-  } yield app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(token).map {
-    case MastodonResponses.Success(status) => status
-    case error: MastodonError => throw error.asThrowable //or send to error handler, or log, or print status etcetc  
+  val statusFuture: Future[Status] = appFuture.flatMap { app =>
+    tokenFuture.flatMap { token =>
+      app.toot("I'm tooting from the Scaladon API!", StatusVisibilities.Public)(token).map {
+        case MastodonResponses.Success(elem) => elem
+        case e: MastodonError => throw e.asThrowable
+      }
+    }
   }
 }
 ```
 
+Fetching an account (using for comprehension):
+```scala
+package ca.schwitzer.scaladon
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import ca.schwitzer.scaladon.Mastodon
+import ca.schwitzer.scaladon.models._
 
-# What doesn't work
-Uploading media, changing user settings (display name/e-mail/avatar/header), and posting toots with attachments.
+import scala.concurrent.ExecutionContext.Implicits.global //we need an ExecutionContext
+import scala.concurrent.Future
 
-I seek to resolve this swiftly.
+object MyMastodonApp extends App {
+  implicit val system = ActorSystem() //an ActorSystem
+  implicit val materializer = ActorMaterializer() //and an ActorMaterializer
+  
+  val appFuture = Mastodon.createApp("marxism.party", "mycoolapp")
+  val tokenFuture = appFuture.flatMap(_.login("my_cool@email.com", "thisshouldreallybsupersecure"))
+  
+  val accountFuture: Future[Account] = for {
+    app     <- appFuture
+    token   <- tokenFuture
+    account <- app.Accounts.fetch(1)(token) 
+  } yield account match {
+    case MastodonResponses.Success(elem) => elem
+    case e: MastodonError => throw e.asThrowable  
+  }
+}
+```
 
 
 
