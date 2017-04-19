@@ -118,9 +118,9 @@ class Mastodon private(baseURI: String,
 
     /**
       * Fetches the accounts following the given account.
-      * @param id The account id to fetch followers for.
+      * @param id The account id to fetch followers accounts for.
       * @param token The AccessToken for the authenticated user.
-      * @return A future response that may contain a sequence of following accounts or an error.
+      * @return A future response that may contain a sequence of accounts or an error.
       */
     def fetchFollowers(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
@@ -128,6 +128,12 @@ class Mastodon private(baseURI: String,
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
 
+    /**
+      * Fetches the accounts the given account is following.
+      * @param id The account id to fetch following accounts for.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain a sequence of accounts or an error.
+      */
     def fetchFollowing(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
 
