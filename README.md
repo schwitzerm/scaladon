@@ -17,7 +17,7 @@ I seek to resolve this swiftly.
 # Including in a project
 Simply add the following to your build.sbt file:
 
-```libraryDependencies += "ca.schwitzer" %% "scaladon" % "0.3.0"```
+```libraryDependencies += "ca.schwitzer" %% "scaladon" % "0.3.1"```
 
 
 
