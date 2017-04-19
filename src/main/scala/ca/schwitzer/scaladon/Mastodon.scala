@@ -248,33 +248,31 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Requests
+  object Requests {
+    def fetchFollows(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/follow_requests")
 
-  def getFollowRequests(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/follow_requests")
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
+    def authorizeFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
+      val entity = Json.obj(
+        "id" -> id
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/authorize", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
+    }
+
+    def rejectFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
+      val entity = Json.obj(
+        "id" -> id
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/reject", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
+    }
   }
-
-  def authorizeFollowRequest(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Unit]] = {
-    val entity = Json.obj(
-      "id" -> id
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/authorize", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Unit])
-  }
-
-  def rejectFollowRequest(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Unit]] = {
-    val entity = Json.obj(
-      "id" -> id
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/reject", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Unit])
-  }
-
-  //endregion Requests
 
   //region Search
 
