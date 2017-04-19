@@ -276,7 +276,7 @@ class Mastodon private(baseURI: String,
 
   object Search {
     def content(query: String, resolveNonLocal: Boolean = false)
-                     (token: AccessToken): Future[MastodonResponse[Results]] = {
+               (token: AccessToken): Future[MastodonResponse[Results]] = {
       val entity = Json.obj(
         "q" -> query,
         "resolve" -> resolveNonLocal
