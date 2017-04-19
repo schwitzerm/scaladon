@@ -3,7 +3,7 @@ A Mastodon social network API implementation in Scala using Akka HTTP and Akka S
 
 This project is in its infancy, but is ready for more testing.
 
-Currently supports Scala 2.12, 
+Currently supports Scala versions 2.11 and 2.12. 
 
 
 
