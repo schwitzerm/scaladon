@@ -76,7 +76,7 @@ class Mastodon private(baseURI: String,
     * @param inReplyToId An optional id of the status this status should be in reply to.
     * @param spoilerText The spoiler text for a status with a content warning.
     * @param token The AccessToken for the authenticated user.
-    * @return A future response that may contain the new status.
+    * @return A future response that may contain the new status or an error.
     */
   def toot(status: String,
            visibility: StatusVisibility,
@@ -95,7 +95,7 @@ class Mastodon private(baseURI: String,
       * Fetches an account.
       * @param id The id of the account to fetch.
       * @param token The AccessToken for the authenticated user.
-      * @return A future response that may contain the desired account.
+      * @return A future response that may contain the desired account or an error.
       */
     def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id")
@@ -106,7 +106,7 @@ class Mastodon private(baseURI: String,
     /**
       * Fetches the account of the authenticated user.
       * @param token The AccessToken for the authenticated user.
-      * @return A future response that may contain the authenticated user's account.
+      * @return A future response that may contain the authenticated user's account or an error.
       */
     def fetchCurrent(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
@@ -116,6 +116,12 @@ class Mastodon private(baseURI: String,
 
     //TODO: def updateInformation()
 
+    /**
+      * Fetches the accounts following the given account.
+      * @param id The account id to fetch followers for.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain a sequence of following accounts or an error.
+      */
     def fetchFollowers(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
 
