@@ -69,6 +69,15 @@ class Mastodon private(baseURI: String,
     })
   }
 
+  /**
+    * Toots a text status.
+    * @param status The status to toot.
+    * @param visibility The visibility of the toot.
+    * @param inReplyToId An optional id of the status this status should be in reply to.
+    * @param spoilerText The spoiler text for a status with a content warning.
+    * @param accessToken An access token for the user to toot as.
+    * @return A future response that may contain the new status.
+    */
   def toot(status: String,
            visibility: StatusVisibility,
            inReplyToId: Option[Int] = None,
