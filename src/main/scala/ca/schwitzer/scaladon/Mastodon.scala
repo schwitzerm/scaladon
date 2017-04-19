@@ -33,7 +33,7 @@ class Mastodon private(baseURI: String,
   /**
     * Makes an authorized request to the Mastodon instance.
     * @param request The request to send to the Mastodon instance.
-    * @param token The AccessToken of the authenticated user.
+    * @param token The AccessToken for the authenticated user.
     * @return A future HttpResponse.
     */
   private def makeAuthorizedRequest(request: HttpRequest, token: AccessToken): Future[HttpResponse] = {
@@ -75,24 +75,39 @@ class Mastodon private(baseURI: String,
     * @param visibility The visibility of the toot.
     * @param inReplyToId An optional id of the status this status should be in reply to.
     * @param spoilerText The spoiler text for a status with a content warning.
-    * @param accessToken An access token for the user to toot as.
+    * @param token The AccessToken for the authenticated user.
     * @return A future response that may contain the new status.
     */
   def toot(status: String,
            visibility: StatusVisibility,
            inReplyToId: Option[Int] = None,
            spoilerText: Option[String] = None)
-          (accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    Statuses.post(status, Seq.empty, sensitive = false, inReplyToId, spoilerText, visibility)(accessToken)
+          (token: AccessToken): Future[MastodonResponse[Status]] = {
+    Statuses.post(status, Seq.empty, sensitive = false, inReplyToId, spoilerText, visibility)(token)
   }
 
+  /**
+    * An object containing the methods described in the "Accounts" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#accounts)
+    */
   object Accounts {
+    /**
+      * Fetches an account.
+      * @param id The id of the account to fetch.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the desired account.
+      */
     def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Account])
     }
 
+    /**
+      * Fetches the account of the authenticated user.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the authenticated user's account.
+      */
     def fetchCurrent(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
 
