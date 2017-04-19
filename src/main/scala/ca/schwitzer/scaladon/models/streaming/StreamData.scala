@@ -1,6 +1,6 @@
 package ca.schwitzer.scaladon.models.streaming
 
-import ca.schwitzer.scaladon.models.{Notification, Status}
+import ca.schwitzer.scaladon.models.mastodon.{Notification, Status}
 
 sealed trait Payload
 

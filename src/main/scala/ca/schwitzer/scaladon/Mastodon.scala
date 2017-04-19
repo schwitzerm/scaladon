@@ -10,6 +10,7 @@ import akka.http.scaladsl.model._
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import ca.schwitzer.scaladon.models._
+import ca.schwitzer.scaladon.models.mastodon._
 import play.api.libs.json._
 
 import scala.concurrent.{ExecutionContext, Future}

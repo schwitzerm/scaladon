@@ -1,4 +1,4 @@
-package ca.schwitzer.scaladon.models
+package ca.schwitzer.scaladon.models.mastodon
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json._

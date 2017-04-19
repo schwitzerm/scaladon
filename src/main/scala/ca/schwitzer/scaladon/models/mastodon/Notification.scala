@@ -1,4 +1,4 @@
-package ca.schwitzer.scaladon.models
+package ca.schwitzer.scaladon.models.mastodon
 
 import org.joda.time.DateTime
 import play.api.libs.functional.syntax._
