@@ -379,36 +379,35 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Timelines
+  object Timelines {
+    def fetchHome(localOnly: Boolean = false)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+      val entity = Json.obj(
+        "local" -> localOnly
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/home", entity = entity)
 
-  def getHomeTimeline(localOnly: Boolean)(accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
-    val entity = Json.obj(
-      "local" -> localOnly
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/home", entity = entity)
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
+    }
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
+    def fetchPublic(localOnly: Boolean = false)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+      val entity = Json.obj(
+        "local" -> localOnly
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/public", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
+    }
+
+    def fetchForHashtag(hashtag: String, localOnly: Boolean = false)
+                       (token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+      val entity = Json.obj(
+        "local" -> localOnly
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/tag/$hashtag", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
+    }
   }
-
-  def getPublicTimeline(localOnly: Boolean)(accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
-    val entity = Json.obj(
-      "local" -> localOnly
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/public", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
-  }
-
-  def getHashtagTimeline(hashtag: String, localOnly: Boolean)(accessToken: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
-    val entity = Json.obj(
-      "local" -> localOnly
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/tag/$hashtag", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Status]])
-  }
-
-  //endregion Timelines
 }
 
 object Mastodon {
