@@ -65,7 +65,7 @@ class Mastodon private(baseURI: String,
         val token = (json \ "access_token").as[String]
         AccessToken(HttpCredentials.createOAuth2BearerToken(token))
 
-      case error: MastodonError => throw error.asThrowable
+      case error: MastodonResponseError => throw error.asThrowable
     })
   }
 
@@ -878,7 +878,7 @@ object Mastodon {
             case MastodonResponses.Success(creds) =>
               saveAppData(baseURI, clientName, creds)
               new Mastodon(baseURI, creds)
-            case error: MastodonError => throw error.asThrowable
+            case error: MastodonResponseError => throw error.asThrowable
           }
         )
     }

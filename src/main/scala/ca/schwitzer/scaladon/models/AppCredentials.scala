@@ -1,4 +1,4 @@
-package ca.schwitzer.scaladon
+package ca.schwitzer.scaladon.models
 
 import play.api.libs.functional.syntax._
 import play.api.libs.json._

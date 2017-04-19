@@ -2,6 +2,7 @@ package ca.schwitzer
 
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
+import ca.schwitzer.scaladon.models.{MastodonResponseError, MastodonErrors, MastodonResponse, MastodonResponses}
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json._
@@ -33,14 +34,14 @@ package object scaladon {
             case JsSuccess(elem, _) => MastodonResponses.Success(elem)
             case e: JsError => MastodonErrors.JSONValidationError(e.errors, new Exception("Error validating response JSON."))
           }
-          case e: MastodonError => e
+          case e: MastodonResponseError => e
         }
         case s if s.isFailure() => response.entity.toJsValue.map {
           case MastodonResponses.Success(json) => json.validate[models.MastodonError] match {
             case JsSuccess(error, _) => MastodonErrors.ResponseError(response.status, new Exception(error.error))
             case e: JsError => MastodonErrors.ResponseError(response.status, new Exception("An unknown error has occurred."))
           }
-          case e: MastodonError => e
+          case e: MastodonResponseError => e
         }
       }
     }
