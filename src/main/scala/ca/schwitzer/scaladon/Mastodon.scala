@@ -69,6 +69,14 @@ class Mastodon private(baseURI: String,
     })
   }
 
+  def toot(status: String,
+           visibility: StatusVisibility,
+           inReplyToId: Option[Int] = None,
+           spoilerText: Option[String] = None)
+          (accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+    Statuses.post(status, Seq.empty, sensitive = false, inReplyToId, spoilerText, visibility)(accessToken)
+  }
+
   object Accounts {
     def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id")
@@ -283,104 +291,93 @@ class Mastodon private(baseURI: String,
       ).toJsonEntity
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/search", entity = entity)
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Results])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Results])
     }
   }
 
-  //region Statuses
+  object Statuses {
+    def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id")
 
-  def getStatus(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id")
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
+    }
 
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+    def fetchContext(id: Int)(token: AccessToken): Future[MastodonResponse[Context]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/context")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Context])
+    }
+
+    def fetchCard(id: Int)(token: AccessToken): Future[MastodonResponse[Card]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/card")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Card])
+    }
+
+    def favouritedBy(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/favourited_by")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
+
+    def rebloggedBy(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/reblogged_by")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
+
+    //TODO: make public once media upload is fixed
+    def post(status: String,
+             mediaIds: Seq[Int],
+             sensitive: Boolean,
+             inReplyToId: Option[Int] = None,
+             spoilerText: Option[String] = None,
+             visibility: StatusVisibility = StatusVisibilities.Public)
+            (token: AccessToken): Future[MastodonResponse[Status]] = {
+      val entity = Json.obj(
+        "status" -> status,
+        "media_ids" -> mediaIds,
+        "sensitive" -> sensitive,
+        "in_reply_to_id" -> inReplyToId,
+        "spoiler_text" -> spoilerText.asInstanceOf[Option[String]],
+        "visibility" -> visibility.toString
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses", entity = entity)
+      println(entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
+    }
+
+    def delete(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
+      val request = HttpRequest(method = HttpMethods.DELETE, uri = s"/api/v1/statuses/$id")
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
+    }
+
+    def reblog(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+      val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/reblog")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+    }
+
+    def unreblog(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+      val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/unreblog")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+    }
+
+    def favourite(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+      val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/favourite")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+    }
+
+    def unfavourite(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+      val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/unfavourite")
+
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+    }
   }
-
-  def getStatusContext(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Context]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/context")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Context])
-  }
-
-  def getStatusCard(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Card]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/card")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Card])
-  }
-
-  def getFavouritedBy(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/favourited_by")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
-  }
-
-  def getRebloggedBy(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-    val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/reblogged_by")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Seq[Account]])
-  }
-
-  //TODO: make public once media upload is fixed
-  private def postStatus(status: String,
-                         mediaIds: Seq[Int],
-                         sensitive: Boolean,
-                         inReplyToId: Option[Int] = None,
-                         spoilerText: Option[String] = None,
-                         visibility: StatusVisibility = StatusVisibilities.Public)
-                        (accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    val st = spoilerText.getOrElse("")
-    val entity = Json.obj(
-      "status" -> status,
-      "media_ids" -> mediaIds,
-      "sensitive" -> sensitive,
-      "in_reply_to_id" -> inReplyToId,
-      "spoiler_text" -> st,
-      "visibility" -> visibility.toString
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses", entity = entity)
-    println(entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
-  }
-
-  def toot(status: String,
-           visibility: StatusVisibility,
-           inReplyToId: Option[Int] = None,
-           spoilerText: Option[String] = None)
-          (accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    postStatus(status, Seq.empty, sensitive = false, inReplyToId, spoilerText, visibility)(accessToken)
-  }
-
-  def deleteStatus(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Unit]] = {
-    val request = HttpRequest(method = HttpMethods.DELETE, uri = s"/api/v1/statuses/$id")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Unit])
-  }
-
-  def reblog(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/reblog")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
-  }
-
-  def unreblog(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/unreblog")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
-  }
-
-  def favourite(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/favourite")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
-  }
-
-  def unfavourite(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
-    val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/unfavourite")
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
-  }
-
-  //endregion Statuses
 
   //region Timelines
 
