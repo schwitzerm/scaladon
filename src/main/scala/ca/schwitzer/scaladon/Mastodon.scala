@@ -274,20 +274,18 @@ class Mastodon private(baseURI: String,
     }
   }
 
-  //region Search
+  object Search {
+    def content(query: String, resolveNonLocal: Boolean = false)
+                     (token: AccessToken): Future[MastodonResponse[Results]] = {
+      val entity = Json.obj(
+        "q" -> query,
+        "resolve" -> resolveNonLocal
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/search", entity = entity)
 
-  def searchContent(query: String, resolveNonLocal: Boolean)
-                   (accessToken: AccessToken): Future[MastodonResponse[Results]] = {
-    val entity = Json.obj(
-      "q" -> query,
-      "resolve" -> resolveNonLocal
-    ).toJsonEntity
-    val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/search", entity = entity)
-
-    makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Results])
+      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Results])
+    }
   }
-
-  //endregion Search
 
   //region Statuses
 
