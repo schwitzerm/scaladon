@@ -1,4 +1,4 @@
-package ca.schwitzer.scaladon
+package ca.schwitzer.scaladon.models
 
 import akka.http.javadsl.model.headers.HttpCredentials
 
