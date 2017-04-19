@@ -36,7 +36,7 @@ package object scaladon {
           case e: MastodonError => e
         }
         case s if s.isFailure() => response.entity.toJsValue.map {
-          case MastodonResponses.Success(json) => json.validate[models.Error] match {
+          case MastodonResponses.Success(json) => json.validate[models.MastodonError] match {
             case JsSuccess(error, _) => MastodonErrors.ResponseError(response.status, new Exception(error.error))
             case e: JsError => MastodonErrors.ResponseError(response.status, new Exception("An unknown error has occurred."))
           }
