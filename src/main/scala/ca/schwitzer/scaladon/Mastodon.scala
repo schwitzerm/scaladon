@@ -399,12 +399,25 @@ class Mastodon private(baseURI: String,
     * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#reports)
     */
   object Reports {
+    /**
+      * Fetches reports made by the authenticated user.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the reports or an error.
+      */
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Report]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/reports")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Report]])
     }
 
+    /**
+      * Report the status of a user.
+      * @param accountId The account id of the user to report.
+      * @param statusIds The statuses to report.
+      * @param comment A comment about the report
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the report or an error.
+      */
     def report(accountId: Int, statusIds: Seq[Int], comment: String)
               (token: AccessToken): Future[MastodonResponse[Report]] = {
       val entity = Json.obj(
@@ -423,12 +436,17 @@ class Mastodon private(baseURI: String,
     * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#requests)
     */
   object Requests {
+    /**
+      * Fetch follow requests
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing a the accounts requesting to follow the user or an error.
+      */
     def fetchFollows(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/follow_requests")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
-
+    
     def authorizeFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
       val entity = Json.obj(
         "id" -> id
