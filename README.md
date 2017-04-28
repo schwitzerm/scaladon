@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/schwitzerm/scaladon.svg?branch=master)](https://travis-ci.org/schwitzerm/scaladon)
 # scaladon
 A Mastodon social network API implementation in Scala using Akka HTTP and Akka Streams.
 
