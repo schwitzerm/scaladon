@@ -6,3 +6,5 @@ notifications:
   email:
     recipients:
       - mitchell@schwitzer.ca
+jdk:
+  - oraclejdk8
