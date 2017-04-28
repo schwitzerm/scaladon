@@ -3,17 +3,17 @@ package ca.schwitzer.scaladon
 import java.io.File
 import java.nio.file.{Files, Paths}
 
-import akka.{Done, NotUsed}
-import akka.actor.ActorSystem
+import akka.NotUsed
+import akka.actor.{Actor, ActorSystem}
 import akka.http.javadsl.model.headers.HttpCredentials
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
+import akka.stream.FanInShape._
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import ca.schwitzer.scaladon.models._
 import ca.schwitzer.scaladon.models.mastodon._
-import ca.schwitzer.scaladon.models.streaming.{Payload, StreamResponses}
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json._
 
@@ -832,6 +832,22 @@ class Mastodon private(baseURI: String,
   }
 
   object Streaming {
+    sealed trait StreamResponse
+
+    final case class StatusResponse(status: Status) extends StreamResponse
+    final case class NotificationResponse(notification: Notification) extends StreamResponse
+    final case class DeleteResponse(id: Int) extends StreamResponse
+
+    final case class StreamEvent(eventType: String)
+    final case class StreamPayload(data: String)
+
+    class FanInStreamShape(_init: Init[StreamResponse] = Name("FanInStreamShape")) extends FanInShape[StreamResponse](_init) {
+      protected override def construct(i: Init[StreamResponse]) = new FanInStreamShape(i)
+
+      val eventsIn: Inlet[StreamEvent] = newInlet[StreamEvent]("eventsIn")
+      val payloadsIn: Inlet[StreamPayload] = newInlet[StreamPayload]("payloadsIn")
+    }
+
     private def isHeartbeat(str: String): Boolean = {
       if (str.startsWith(":")) true
       else false
@@ -848,6 +864,17 @@ class Mastodon private(baseURI: String,
     }
 
     def user(token: AccessToken) = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/user")
+
+      makeAuthorizedRequest(request, token).map {
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.map(_.utf8String).map {
+          case str if isHeartbeat(str) =>
+          case str if isEvent(str) =>
+          case str if isPayload(str) =>
+          case _ =>
+        }
+        case xhr if xhr.status.isFailure() => throw new Exception(s"Could not obtain user stream. More info: [${xhr.status}] ${}")
+      }
     }
 
     def public(token: AccessToken) = {
