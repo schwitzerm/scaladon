@@ -3,14 +3,18 @@ package ca.schwitzer.scaladon
 import java.io.File
 import java.nio.file.{Files, Paths}
 
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.headers.HttpCredentials
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream._
+import akka.stream.scaladsl._
+import akka.util.ByteString
 import ca.schwitzer.scaladon.models._
 import ca.schwitzer.scaladon.models.mastodon._
+import ca.schwitzer.scaladon.models.streaming.{Payload, StreamResponses}
+import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -19,7 +23,7 @@ class Mastodon private(baseURI: String,
                appCredentials: AppCredentials)
               (implicit system: ActorSystem,
                materializer: Materializer,
-               ec: ExecutionContext) {
+               ec: ExecutionContext) extends LazyLogging {
   private val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] = Http().outgoingConnectionHttps(baseURI)
 
   /**
@@ -824,6 +828,32 @@ class Mastodon private(baseURI: String,
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/tag/$hashtag", entity = entity)
 
       makeRequest(request).flatMap(_.handleAs[Seq[Status]])
+    }
+  }
+
+  object Streaming {
+    private def isHeartbeat(str: String): Boolean = {
+      if (str.startsWith(":")) true
+      else false
+    }
+
+    private def isEvent(str: String): Boolean = {
+      if (str.startsWith("event")) true
+      else false
+    }
+
+    private def isPayload(str: String): Boolean = {
+      if (str.startsWith("payload")) true
+      else false
+    }
+
+    def user(token: AccessToken) = {
+    }
+
+    def public(token: AccessToken) = {
+    }
+
+    def hashtag(tag: String)(token: AccessToken) = {
     }
   }
 }
