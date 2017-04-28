@@ -23,11 +23,9 @@ object MyMastodonApp extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
     for {
-      app: Mastodon <- appFuture
-      token: AccessToken <- tokenFuture
-      stream: Source[ByteString, Any] <- app.Streaming.user(token)
-    } {
-      stream.map(_.utf8String.stripLineEnd).runForeach(println)
-    }
+      app <- appFuture
+      token <- tokenFuture
+      acct <- app.Accounts.fetch(1)(token)
+    } yield println(acct)
   }
 }

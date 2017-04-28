@@ -832,22 +832,6 @@ class Mastodon private(baseURI: String,
   }
 
   object Streaming {
-    sealed trait StreamResponse
-
-    final case class StatusResponse(status: Status) extends StreamResponse
-    final case class NotificationResponse(notification: Notification) extends StreamResponse
-    final case class DeleteResponse(id: Int) extends StreamResponse
-
-    final case class StreamEvent(eventType: String)
-    final case class StreamPayload(data: String)
-
-    class FanInStreamShape(_init: Init[StreamResponse] = Name("FanInStreamShape")) extends FanInShape[StreamResponse](_init) {
-      protected override def construct(i: Init[StreamResponse]) = new FanInStreamShape(i)
-
-      val eventsIn: Inlet[StreamEvent] = newInlet[StreamEvent]("eventsIn")
-      val payloadsIn: Inlet[StreamPayload] = newInlet[StreamPayload]("payloadsIn")
-    }
-
     private def isHeartbeat(str: String): Boolean = {
       if (str.startsWith(":")) true
       else false
