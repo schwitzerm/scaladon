@@ -3,17 +3,16 @@ package ca.schwitzer.scaladon
 import java.io.File
 import java.nio.file.{Files, Paths}
 
-import akka.NotUsed
-import akka.actor.{Actor, ActorSystem}
+import akka.actor.ActorSystem
 import akka.http.javadsl.model.headers.HttpCredentials
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.stream.FanInShape._
 import akka.stream._
 import akka.stream.scaladsl._
-import akka.util.ByteString
 import ca.schwitzer.scaladon.models._
 import ca.schwitzer.scaladon.models.mastodon._
+import ca.schwitzer.scaladon.streaming.StreamResponse
+import ca.schwitzer.scaladon.streaming.graphs.ByteStringToStreamResponseFlow
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json._
 
@@ -832,39 +831,34 @@ class Mastodon private(baseURI: String,
   }
 
   object Streaming {
-    private def isHeartbeat(str: String): Boolean = {
-      if (str.startsWith(":")) true
-      else false
-    }
-
-    private def isEvent(str: String): Boolean = {
-      if (str.startsWith("event")) true
-      else false
-    }
-
-    private def isPayload(str: String): Boolean = {
-      if (str.startsWith("payload")) true
-      else false
-    }
-
-    def user(token: AccessToken) = {
+    def user(token: AccessToken): Future[Source[StreamResponse, Any]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/user")
 
       makeAuthorizedRequest(request, token).map {
-        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.map(_.utf8String).map {
-          case str if isHeartbeat(str) =>
-          case str if isEvent(str) =>
-          case str if isPayload(str) =>
-          case _ =>
-        }
-        case xhr if xhr.status.isFailure() => throw new Exception(s"Could not obtain user stream. More info: [${xhr.status}] ${}")
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(ByteStringToStreamResponseFlow())
+        case xhr => throw new Exception(s"Could not obtain user stream. More info: [${xhr.status}] ${}")
       }
     }
 
-    def public(token: AccessToken) = {
+    def public(token: AccessToken): Future[Source[StreamResponse, Any]] = {
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/public")
+
+      makeAuthorizedRequest(request, token).map {
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(ByteStringToStreamResponseFlow())
+        case xhr => throw new Exception(s"Could not obtain public stream. More info: [${xhr.status}] ${}")
+      }
     }
 
-    def hashtag(tag: String)(token: AccessToken) = {
+    def hashtag(tag: String)(token: AccessToken): Future[Source[StreamResponse, Any]] = {
+      val entity = Json.obj(
+        "tag" -> tag
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/hashtag", entity = entity)
+
+      makeAuthorizedRequest(request, token).map {
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(ByteStringToStreamResponseFlow())
+        case xhr => throw new Exception(s"Could not obtain hashtag stream. More info: [${xhr.status}] ${}")
+      }
     }
   }
 }

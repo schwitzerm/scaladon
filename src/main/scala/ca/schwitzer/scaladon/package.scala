@@ -2,7 +2,7 @@ package ca.schwitzer
 
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
-import ca.schwitzer.scaladon.models.{MastodonResponseError, MastodonErrors, MastodonResponse, MastodonResponses}
+import ca.schwitzer.scaladon.models.{MastodonErrors, MastodonResponse, MastodonResponseError, MastodonResponses}
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json._

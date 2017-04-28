@@ -11,5 +11,4 @@ object StreamResponses {
   final case class NotificationResponse(notification: Notification) extends StreamResponse
 
   final case class DeleteResponse(id: Int) extends StreamResponse
-
 }
