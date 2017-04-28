@@ -3,8 +3,7 @@ package ca.schwitzer.scaladon
 import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
-import ca.schwitzer.scaladon.streaming.graphs.FanInMessages
-import ca.schwitzer.scaladon.streaming.{StreamMessages, StreamResponse}
+import ca.schwitzer.scaladon.streaming.{Graphs, StreamMessages, StreamResponse}
 import org.scalatest._
 import org.scalatest.concurrent._
 
@@ -47,7 +46,7 @@ class FanInMessagesSpec extends WordSpec with Matchers with ScalaFutures {
       RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
         import GraphDSL.Implicits._
 
-        val fanIn = b.add(FanInMessages())
+        val fanIn = b.add(Graphs.FanInMessages())
         val printFlow = Flow[StreamResponse].map(println)
 
         events ~> fanIn.eventIn

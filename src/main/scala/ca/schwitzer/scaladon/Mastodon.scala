@@ -3,16 +3,18 @@ package ca.schwitzer.scaladon
 import java.io.File
 import java.nio.file.{Files, Paths}
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.headers.HttpCredentials
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.stream._
 import akka.stream.scaladsl._
+import akka.util.ByteString
 import ca.schwitzer.scaladon.models._
 import ca.schwitzer.scaladon.models.mastodon._
+import ca.schwitzer.scaladon.streaming.Graphs.StreamResponseGraph
 import ca.schwitzer.scaladon.streaming.StreamResponse
-import ca.schwitzer.scaladon.streaming.graphs.ByteStringToStreamResponseFlow
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json._
 
@@ -831,11 +833,22 @@ class Mastodon private(baseURI: String,
   }
 
   object Streaming {
+    final val responseFlow: Flow[ByteString, StreamResponse, NotUsed] = Flow.fromGraph(GraphDSL.create() { implicit b =>
+      import GraphDSL.Implicits._
+
+      val in = b.add(Broadcast[ByteString](1))
+      val graph = b.add(StreamResponseGraph())
+
+      in ~> graph.bsIn
+
+      FlowShape(in.in, graph.responseOut)
+    })
+
     def user(token: AccessToken): Future[Source[StreamResponse, Any]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/user")
 
       makeAuthorizedRequest(request, token).map {
-        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(ByteStringToStreamResponseFlow())
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(responseFlow)
         case xhr => throw new Exception(s"Could not obtain user stream. More info: [${xhr.status}] ${}")
       }
     }
@@ -844,7 +857,7 @@ class Mastodon private(baseURI: String,
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/public")
 
       makeAuthorizedRequest(request, token).map {
-        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(ByteStringToStreamResponseFlow())
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(responseFlow)
         case xhr => throw new Exception(s"Could not obtain public stream. More info: [${xhr.status}] ${}")
       }
     }
@@ -856,7 +869,7 @@ class Mastodon private(baseURI: String,
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/streaming/hashtag", entity = entity)
 
       makeAuthorizedRequest(request, token).map {
-        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(ByteStringToStreamResponseFlow())
+        case xhr if xhr.status.isSuccess() => xhr.entity.dataBytes.via(responseFlow)
         case xhr => throw new Exception(s"Could not obtain hashtag stream. More info: [${xhr.status}] ${}")
       }
     }
