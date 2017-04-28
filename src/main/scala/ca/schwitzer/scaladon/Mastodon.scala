@@ -22,7 +22,7 @@ class Mastodon private(baseURI: String,
   private val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] = Http().outgoingConnectionHttps(baseURI)
 
   /**
-    * Makes a non-authorized request to the Mastodon instance.
+    * Make a non-authorized request to the Mastodon instance.
     * @param request The request to send to the Mastodon instance.
     * @return A future HttpResponse.
     */
@@ -31,7 +31,7 @@ class Mastodon private(baseURI: String,
   }
 
   /**
-    * Makes an authorized request to the Mastodon instance.
+    * Make an authorized request to the Mastodon instance.
     * @param request The request to send to the Mastodon instance.
     * @param token The AccessToken for the authenticated user.
     * @return A future HttpResponse.
@@ -41,7 +41,7 @@ class Mastodon private(baseURI: String,
   }
 
   /**
-    * Logs the user into the Mastodon instance and returns a future access token.
+    * Log the user into the Mastodon instance and returns a future access token.
     * @param username The username to log in with (for Mastodon, this is the account's e-mail address)
     * @param password The password of the user.
     * @param scopes The scopes to use when logging in.
@@ -70,7 +70,7 @@ class Mastodon private(baseURI: String,
   }
 
   /**
-    * Toots a text status.
+    * Toot a text status.
     * @param status The status to toot.
     * @param visibility The visibility of the toot.
     * @param inReplyToId An optional id of the status this status should be in reply to.
@@ -92,7 +92,7 @@ class Mastodon private(baseURI: String,
     */
   object Accounts {
     /**
-      * Fetches an account.
+      * Fetch an account.
       * @param id The id of the account to fetch.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the desired account or an error.
@@ -104,7 +104,7 @@ class Mastodon private(baseURI: String,
     }
 
     /**
-      * Fetches the account of the authenticated user.
+      * Fetch the account of the authenticated user.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the authenticated user's account or an error.
       */
@@ -117,10 +117,10 @@ class Mastodon private(baseURI: String,
     //TODO: def updateInformation()
 
     /**
-      * Fetches the accounts following the given account.
+      * Fetch the accounts following the given account.
       * @param id The account id to fetch followers accounts for.
       * @param token The AccessToken for the authenticated user.
-      * @return A future response that may contain a sequence of accounts or an error.
+      * @return A future response that may contain the accounts or an error.
       */
     def fetchFollowers(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
@@ -129,10 +129,10 @@ class Mastodon private(baseURI: String,
     }
 
     /**
-      * Fetches the accounts the given account is following.
+      * Fetch the accounts the given account is following.
       * @param id The account id to fetch following accounts for.
       * @param token The AccessToken for the authenticated user.
-      * @return A future response that may contain a sequence of accounts or an error.
+      * @return A future response that may contain the accounts or an error.
       */
     def fetchFollowing(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
@@ -140,6 +140,14 @@ class Mastodon private(baseURI: String,
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
 
+    /**
+      * Fetch statuses post by the given account.
+      * @param id The account id to fetch statuses for.
+      * @param onlyMedia Whether or not to fetch only media posts.
+      * @param excludeReplies Whether or not to exclude replies.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the statuses or an error.
+      */
     def fetchStatuses(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
                      (token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
       val entity = Json.obj(
@@ -151,42 +159,84 @@ class Mastodon private(baseURI: String,
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
     }
 
+    /**
+      * Follow the given account.
+      * @param id The account id to follow.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the new relationship or an error.
+      */
     def follow(id: Int)(token: AccessToken): Future[MastodonResponse[Relationship]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/follow")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
 
+    /**
+      * Unfollow the given account.
+      * @param id The account id to unfollow.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the new relationship or an error.
+      */
     def unfollow(id: Int)(token: AccessToken): Future[MastodonResponse[Relationship]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unfollow")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
 
+    /**
+      * Block the given account.
+      * @param id The account id to block.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the new relationship or an error.
+      */
     def block(id: Int)(token: AccessToken): Future[MastodonResponse[Relationship]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/block")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
 
+    /**
+      * Unblock the given account.
+      * @param id The account id to unblock.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the new relationship or an error.
+      */
     def unblock(id: Int)(token: AccessToken): Future[MastodonResponse[Relationship]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unblock")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
 
+    /**
+      * Mute the given account.
+      * @param id The account id to mute.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the new relationship or an error.
+      */
     def mute(id: Int)(token: AccessToken): Future[MastodonResponse[Relationship]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/mute")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
 
+    /**
+      * Unmute the given account.
+      * @param id The account id to unmute.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the new relationship or an error.
+      */
     def unmute(id: Int)(token: AccessToken): Future[MastodonResponse[Relationship]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/accounts/$id/unmute")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Relationship])
     }
 
+    /**
+      * Fetch relationships for a list of accounts.
+      * @param ids The accounts to fetch relationships for.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the relationships or an error.
+      */
     def fetchRelationships(ids: Seq[Int] = Seq.empty)
                           (token: AccessToken): Future[MastodonResponse[Seq[Relationship]]] = {
       val entity = Json.obj(
@@ -197,6 +247,13 @@ class Mastodon private(baseURI: String,
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Relationship]])
     }
 
+    /**
+      * Search accounts.
+      * @param query The query to search for.
+      * @param limit The limit of accounts to return.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the resulting accounts or an error.
+      */
     def search(query: String, limit: Int = 40)
               (token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val entity = Json.obj(
@@ -209,7 +266,16 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Blocks" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#blocks)
+    */
   object Blocks {
+    /**
+      * Fetch accounts the authenticated user is blocking.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the blocked accounts or an error.
+      */
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/blocks")
 
@@ -217,7 +283,16 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Favourites" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#favourites)
+    */
   object Favourites {
+    /**
+      * Fetch statuses the authenticated user has favourited.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response that may contain the favourited statuses or an error.
+      */
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/favourites")
 
@@ -225,7 +300,17 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Follows" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#follows)
+    */
   object Follows {
+    /**
+      * Follow a user by their user URI.
+      * @param userUri The user URI of the account to follow.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the followed account or an error.
+      */
     def follow(userUri: String)(token: AccessToken): Future[MastodonResponse[Account]] = {
       val entity = Json.obj(
         "uri" -> userUri
@@ -236,7 +321,15 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Instances" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#instances)
+    */
   object Instances {
+    /**
+      * Fetch information about the connected instance.
+      * @return A future response containing the instance information or an error.
+      */
     def fetchInformation: Future[MastodonResponse[Instance]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/instance")
 
@@ -244,7 +337,16 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Mutes" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#mutes)
+    */
   object Mutes {
+    /**
+      * Fetch accounts the authenticated user is muting.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the muted accounts or an error.
+      */
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/mutes")
 
@@ -252,19 +354,39 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Notifications" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#notifications)
+    */
   object Notifications {
+    /**
+      * Clears notifications.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing a Unit or an error.
+      */
     def clear(token: AccessToken): Future[MastodonResponse[Unit]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/notifications/clear")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
     }
 
+    /**
+      * Fetches notifications.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the notifications or an error.
+      */
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Notification]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/notifications")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Notification]])
     }
 
+    /**
+      * Fetches a notification.
+      * @param id The id of the notification to fetch.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the notification or an error.
+      */
     def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Notification]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/notifications/$id")
 
@@ -272,6 +394,10 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Reports" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#reports)
+    */
   object Reports {
     def fetch(token: AccessToken): Future[MastodonResponse[Seq[Report]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/reports")
@@ -292,6 +418,10 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Requests" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#requests)
+    */
   object Requests {
     def fetchFollows(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/follow_requests")
@@ -318,6 +448,10 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Search" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#search)
+    */
   object Search {
     def content(query: String, resolveNonLocal: Boolean = false)
                (token: AccessToken): Future[MastodonResponse[Results]] = {
@@ -331,6 +465,10 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Statuses" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#statuses)
+    */
   object Statuses {
     def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id")
@@ -415,6 +553,10 @@ class Mastodon private(baseURI: String,
     }
   }
 
+  /**
+    * An object containing the methods described in the "Timelines" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#timelines)
+    */
   object Timelines {
     def fetchHome(localOnly: Boolean = false)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
       val entity = Json.obj(
