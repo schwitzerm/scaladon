@@ -3,7 +3,7 @@ crossScalaVersions := Seq("2.11.8", scalaVersion.value)
 
 name := "scaladon"
 organization := "ca.schwitzer"
-version := "0.3.1"
+version := "0.3.2"
 
 libraryDependencies ++= Seq(
   //http & streams

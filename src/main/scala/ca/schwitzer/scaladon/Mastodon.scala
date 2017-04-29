@@ -108,7 +108,7 @@ class Mastodon private(baseURI: String,
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the authenticated user's account or an error.
       */
-    def fetchCurrent(token: AccessToken): Future[MastodonResponse[Account]] = {
+    def fetchAuthenticated(token: AccessToken): Future[MastodonResponse[Account]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/accounts/verify_credentials")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Account])
@@ -119,11 +119,22 @@ class Mastodon private(baseURI: String,
     /**
       * Fetch the accounts following the given account.
       * @param id The account id to fetch followers accounts for.
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the accounts or an error.
       */
-    def fetchFollowers(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers")
+    def fetchFollowers(id: Int,
+                       limit: Int = 40,
+                       maxId: Option[Int] = None,
+                       sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/followers", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
@@ -131,11 +142,22 @@ class Mastodon private(baseURI: String,
     /**
       * Fetch the accounts the given account is following.
       * @param id The account id to fetch following accounts for.
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the accounts or an error.
       */
-    def fetchFollowing(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following")
+    def fetchFollowing(id: Int,
+                       limit: Int = 40,
+                       maxId: Option[Int] = None,
+                       sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/accounts/$id/following", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
@@ -143,14 +165,25 @@ class Mastodon private(baseURI: String,
     /**
       * Fetch statuses post by the given account.
       * @param id The account id to fetch statuses for.
+      * @param limit Maximum number of statuses to fetch.
+      * @param maxId Limits the statuses to those with an id less than or equal to this value.
+      * @param sinceId Limits the statuses to those with an id greater than this value.
       * @param onlyMedia Whether or not to fetch only media posts.
       * @param excludeReplies Whether or not to exclude replies.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the statuses or an error.
       */
-    def fetchStatuses(id: Int, onlyMedia: Boolean = false, excludeReplies: Boolean = false)
+    def fetchStatuses(id: Int,
+                      limit: Int = 40,
+                      maxId: Option[Int] = None,
+                      sinceId: Option[Int] = None,
+                      onlyMedia: Boolean = false,
+                      excludeReplies: Boolean = false)
                      (token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
       val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId,
         "only_media" -> onlyMedia,
         "exclude_replies" -> excludeReplies
       ).toJsonEntity
@@ -273,11 +306,21 @@ class Mastodon private(baseURI: String,
   object Blocks {
     /**
       * Fetch accounts the authenticated user is blocking.
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the blocked accounts or an error.
       */
-    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/blocks")
+    def fetch(limit: Int = 40,
+              maxId: Option[Int] = None,
+              sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/blocks", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
@@ -290,11 +333,21 @@ class Mastodon private(baseURI: String,
   object Favourites {
     /**
       * Fetch statuses the authenticated user has favourited.
+      * @param limit Maximum number of statuses to fetch.
+      * @param maxId Limits the statuses to those with an id less than or equal to this value.
+      * @param sinceId Limits the statuses to those with an id greater than this value.
       * @param token The AccessToken for the authenticated user.
       * @return A future response that may contain the favourited statuses or an error.
       */
-    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/favourites")
+    def fetch(limit: Int = 40,
+              maxId: Option[Int] = None,
+              sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/favourites", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
     }
@@ -322,6 +375,63 @@ class Mastodon private(baseURI: String,
   }
 
   /**
+    * An object containing the methods described in the "Follow Requests" section of the Mastodon API documentation.
+    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#follow-requests)
+    */
+  object FollowRequests {
+    /**
+      * Fetch follow requests
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the accounts requesting to follow the user or an error.
+      */
+    def fetchFollows(limit: Int = 40,
+                     maxId: Option[Int] = None,
+                     sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/follow_requests", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+    }
+
+    /**
+      * Authorize a follow request.
+      * @param id The id of the account to authorize.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing a Unit (empty object) or an error.
+      */
+    def authorizeFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
+      val entity = Json.obj(
+        "id" -> id
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/authorize", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
+    }
+
+    /**
+      * Reject a follow request.
+      * @param id The id of the account to reject.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing a Unit (empty object) or an error.
+      */
+    def rejectFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
+      val entity = Json.obj(
+        "id" -> id
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/reject", entity = entity)
+
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
+    }
+  }
+
+  /**
     * An object containing the methods described in the "Instances" section of the Mastodon API documentation.
     * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#instances)
     */
@@ -344,11 +454,21 @@ class Mastodon private(baseURI: String,
   object Mutes {
     /**
       * Fetch accounts the authenticated user is muting.
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
       * @param token The AccessToken for the authenticated user.
       * @return A future response containing the muted accounts or an error.
       */
-    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/mutes")
+    def fetch(limit: Int = 40,
+              maxId: Option[Int] = None,
+              sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/mutes", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
     }
@@ -373,10 +493,20 @@ class Mastodon private(baseURI: String,
     /**
       * Fetches notifications.
       * @param token The AccessToken for the authenticated user.
+      * @param limit Maximum number of notifications to fetch.
+      * @param maxId Limits the notifications to those with an id less than or equal to this value.
+      * @param sinceId Limits the notifications to those with an id greater than this value.
       * @return A future response containing the notifications or an error.
       */
-    def fetch(token: AccessToken): Future[MastodonResponse[Seq[Notification]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/notifications")
+    def fetch(limit: Int = 40,
+              maxId: Option[Int] = None,
+              sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Notification]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/notifications", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Notification]])
     }
@@ -432,54 +562,25 @@ class Mastodon private(baseURI: String,
   }
 
   /**
-    * An object containing the methods described in the "Requests" section of the Mastodon API documentation.
-    * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#requests)
-    */
-  object Requests {
-    /**
-      * Fetch follow requests
-      * @param token The AccessToken for the authenticated user.
-      * @return A future response containing a the accounts requesting to follow the user or an error.
-      */
-    def fetchFollows(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/follow_requests")
-
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
-    }
-    
-    def authorizeFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
-      val entity = Json.obj(
-        "id" -> id
-      ).toJsonEntity
-      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/authorize", entity = entity)
-
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
-    }
-
-    def rejectFollow(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
-      val entity = Json.obj(
-        "id" -> id
-      ).toJsonEntity
-      val request = HttpRequest(method = HttpMethods.POST, uri = "/api/v1/follow_requests/reject", entity = entity)
-
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
-    }
-  }
-
-  /**
     * An object containing the methods described in the "Search" section of the Mastodon API documentation.
     * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#search)
     */
   object Search {
-    def content(query: String, resolveNonLocal: Boolean = false)
-               (token: AccessToken): Future[MastodonResponse[Results]] = {
+    /**
+      * Search content.
+      * @param query The search query.
+      * @param resolveNonLocal Whether or not to resolve results from non-local accounts.
+      * @return A future response containing the search results or an error.
+      */
+    def content(query: String,
+                resolveNonLocal: Boolean = false): Future[MastodonResponse[Results]] = {
       val entity = Json.obj(
         "q" -> query,
         "resolve" -> resolveNonLocal
       ).toJsonEntity
       val request = HttpRequest(method = HttpMethods.GET, uri = "/api/v1/search", entity = entity)
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Results])
+      makeRequest(request).flatMap(_.handleAs[Results])
     }
   }
 
@@ -488,37 +589,83 @@ class Mastodon private(baseURI: String,
     * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#statuses)
     */
   object Statuses {
-    def fetch(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
+    /**
+      * Fetch a status.
+      * @param id The id of the status to fetch.
+      * @return A future response containing the status or an error.
+      */
+    def fetch(id: Int): Future[MastodonResponse[Status]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id")
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
+      makeRequest(request).flatMap(_.handleAs[Status])
     }
 
-    def fetchContext(id: Int)(token: AccessToken): Future[MastodonResponse[Context]] = {
+    /**
+      * Fetch a status context.
+      * @param id The id of the status to fetch the context for.
+      * @return A future response containing the status context or an error.
+      */
+    def fetchContext(id: Int): Future[MastodonResponse[Context]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/context")
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Context])
+      makeRequest(request).flatMap(_.handleAs[Context])
     }
 
-    def fetchCard(id: Int)(token: AccessToken): Future[MastodonResponse[Card]] = {
+    /**
+      * Fetch a status card.
+      * @param id The id of the status to fetch the card for.
+      * @return A future response containing the status card or an error.
+      */
+    def fetchCard(id: Int): Future[MastodonResponse[Card]] = {
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/card")
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Card])
+      makeRequest(request).flatMap(_.handleAs[Card])
     }
 
-    def favouritedBy(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/favourited_by")
+    /**
+      * Fetch who favourited a status.
+      * @param id The id of the status to fetch the favourited accounts for.
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
+      * @return A future response containing the accounts or an error.
+      */
+    def favouritedBy(id: Int,
+                     limit: Int = 40,
+                     maxId: Option[Int] = None,
+                     sinceId: Option[Int] = None): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/favourited_by", entity = entity)
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+      makeRequest(request).flatMap(_.handleAs[Seq[Account]])
     }
 
-    def rebloggedBy(id: Int)(token: AccessToken): Future[MastodonResponse[Seq[Account]]] = {
-      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/reblogged_by")
+    /**
+      * Fetch who reblogged a status.
+      * @param id The id of the status to fetch the reblogged accounts for.
+      * @param limit Maximum number of accounts to fetch.
+      * @param maxId Limits the accounts to those with an id less than or equal to this value.
+      * @param sinceId Limits the accounts to those with an id greater than this value.
+      * @return A future response containing the accounts or an error.
+      */
+    def rebloggedBy(id: Int,
+                    limit: Int = 40,
+                    maxId: Option[Int] = None,
+                    sinceId: Option[Int] = None): Future[MastodonResponse[Seq[Account]]] = {
+      val entity = Json.obj(
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
+      ).toJsonEntity
+      val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/statuses/$id/reblogged_by", entity = entity)
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Account]])
+      makeRequest(request).flatMap(_.handleAs[Seq[Account]])
     }
 
-    //TODO: make public once media upload is fixed
     def post(status: String,
              mediaIds: Seq[Int],
              sensitive: Boolean,
@@ -540,34 +687,64 @@ class Mastodon private(baseURI: String,
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
     }
 
+    /**
+      * Delete a status.
+      * @param id The id of the status to delete.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing a Unit (empty object) or an error.
+      */
     def delete(id: Int)(token: AccessToken): Future[MastodonResponse[Unit]] = {
       val request = HttpRequest(method = HttpMethods.DELETE, uri = s"/api/v1/statuses/$id")
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Unit])
     }
 
-    def reblog(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+    /**
+      * Reblog a status.
+      * @param id The id of the status to reblog.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the reblogged status or an error.
+      */
+    def reblog(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/reblog")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
     }
 
-    def unreblog(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+    /**
+      * Unreblog a status.
+      * @param id The id of the status to unreblog.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the unreblogged status or an error.
+      */
+    def unreblog(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/statuses/$id/unreblog")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
     }
 
-    def favourite(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+    /**
+      * Favourite a status.
+      * @param id The id of the status to favourite.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the favourited status or an error.
+      */
+    def favourite(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/favourite")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
     }
 
-    def unfavourite(id: Int)(accessToken: AccessToken): Future[MastodonResponse[Status]] = {
+    /**
+      * Unfavourite a status.
+      * @param id The id of the status to unfavourite.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the unfavourited status or an error.
+      */
+    def unfavourite(id: Int)(token: AccessToken): Future[MastodonResponse[Status]] = {
       val request = HttpRequest(method = HttpMethods.POST, uri = s"/api/v1/status/$id/unfavourite")
 
-      makeAuthorizedRequest(request, accessToken).flatMap(_.handleAs[Status])
+      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Status])
     }
   }
 
@@ -576,32 +753,76 @@ class Mastodon private(baseURI: String,
     * (https://github.com/tootsuite/documentation/blob/master/Using-the-API/API.md#timelines)
     */
   object Timelines {
-    def fetchHome(localOnly: Boolean = false)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+    /**
+      * Fetches the user's home timeline.
+      * @param localOnly Whether or not to limit timeline to local results only.
+      * @param limit Maximum number of statuses to fetch.
+      * @param maxId Limits the statuses to those with an id less than or equal to this value.
+      * @param sinceId Limits the statuses to those with an id greater than this value.
+      * @param token The AccessToken for the authenticated user.
+      * @return A future response containing the statuses or an error.
+      */
+    def fetchHome(localOnly: Boolean = false,
+                  limit: Int = 40,
+                  maxId: Option[Int] = None,
+                  sinceId: Option[Int] = None)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
       val entity = Json.obj(
-        "local" -> localOnly
+        "local" -> localOnly,
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
       ).toJsonEntity
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/home", entity = entity)
 
       makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
     }
 
-    def fetchPublic(localOnly: Boolean = false)(token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+    /**
+      * Fetches the public timeline.
+      * @param localOnly Whether or not to limit timeline to local results only.
+      * @param limit Maximum number of statuses to fetch.
+      * @param maxId Limits the statuses to those with an id less than or equal to this value.
+      * @param sinceId Limits the statuses to those with an id greater than this value.
+      * @return A future response containing the statuses or an error.
+      */
+    def fetchPublic(localOnly: Boolean = false,
+                    limit: Int = 40,
+                    maxId: Option[Int] = None,
+                    sinceId: Option[Int] = None): Future[MastodonResponse[Seq[Status]]] = {
       val entity = Json.obj(
-        "local" -> localOnly
+        "local" -> localOnly,
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
       ).toJsonEntity
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/public", entity = entity)
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
+      makeRequest(request).flatMap(_.handleAs[Seq[Status]])
     }
 
-    def fetchForHashtag(hashtag: String, localOnly: Boolean = false)
-                       (token: AccessToken): Future[MastodonResponse[Seq[Status]]] = {
+    /**
+      * Fetches a timeline for a hashtag.
+      * @param hashtag The hashtag to get the timeline for.
+      * @param localOnly Whether or not to limit timeline to local results only.
+      * @param limit Maximum number of statuses to fetch.
+      * @param maxId Limits the statuses to those with an id less than or equal to this value.
+      * @param sinceId Limits the statuses to those with an id greater than this value.
+      * @return A future response containing the statuses or an error.
+      */
+    def fetchForHashtag(hashtag: String,
+                        localOnly: Boolean = false,
+                        limit: Int = 40,
+                        maxId: Option[Int] = None,
+                        sinceId: Option[Int] = None): Future[MastodonResponse[Seq[Status]]] = {
       val entity = Json.obj(
-        "local" -> localOnly
+        "local" -> localOnly,
+        "limit" -> limit,
+        "max_id" -> maxId,
+        "since_id" -> sinceId
       ).toJsonEntity
       val request = HttpRequest(method = HttpMethods.GET, uri = s"/api/v1/timelines/tag/$hashtag", entity = entity)
 
-      makeAuthorizedRequest(request, token).flatMap(_.handleAs[Seq[Status]])
+      makeRequest(request).flatMap(_.handleAs[Seq[Status]])
     }
   }
 }
