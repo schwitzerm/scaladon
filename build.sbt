@@ -3,7 +3,7 @@ crossScalaVersions := Seq("2.11.8", scalaVersion.value)
 
 name := "scaladon"
 organization := "ca.schwitzer"
-version := "0.3.1"
+version := "0.3.2"
 
 libraryDependencies ++= Seq(
   //http & streams
@@ -13,6 +13,9 @@ libraryDependencies ++= Seq(
 
   //json
   "com.typesafe.play" %% "play-json" % "2.6.0-M6",
+
+  //config
+  "com.typesafe" % "config" % "1.3.1",
 
   //testing
   "org.scalactic" %% "scalactic" % "3.0.1",
