@@ -1,8 +1,0 @@
----
-name: Scaladon
-description: A Scala library for the Mastodon social media platform API.
-
-gems:
-  - jekyll-theme-midnight
-
-theme: jekyll-theme-midnight
