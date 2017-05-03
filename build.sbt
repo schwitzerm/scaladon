@@ -19,7 +19,9 @@ libraryDependencies ++= Seq(
 
   //testing
   "org.scalactic" %% "scalactic" % "3.0.1",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "org.scalacheck" %% "scalacheck" % "1.13.4" % "test",
+  "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % Test
 )
 
 useGpg := true
