@@ -1,3 +1,10 @@
+# NOTE:
+This project is no longer maintained. See the below fork for an updated library.
+
+https://github.com/Sciss/scaladon
+
+
+
 [![Build Status](https://travis-ci.org/schwitzerm/scaladon.svg?branch=master)](https://travis-ci.org/schwitzerm/scaladon)
 # scaladon
 A Mastodon social network API implementation in Scala using Akka HTTP and Akka Streams.
@@ -13,6 +20,7 @@ Uploading media, changing user settings (display name/e-mail/avatar/header), and
 
 I seek to resolve this swiftly.
 
+(I did not resolve this swiftly.)
 
 
 # Including in a project
