@@ -101,4 +101,4 @@ More examples and full code documentation will be coming soon. For now, just tak
 # About Project Manager
 I'm Mitchell Schwitzer and I enjoy to work on all sorts of things, especially in Scala.
 
-If you have any questions or recommendations, please get to me at mitchell@schwitzer.ca, or at [mellow_@marxism.party](https://marxism.party/@mellow_) on the Fediverse!
+If you have any questions or recommendations, please get to me at mitchell@schwitzer.ca!
