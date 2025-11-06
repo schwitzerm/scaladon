@@ -47,7 +47,7 @@ object MyMastodonApp extends App {
   implicit val system = ActorSystem() //an ActorSystem
   implicit val materializer = ActorMaterializer() //and an ActorMaterializer
   
-  val appFuture = Mastodon.createApp("marxism.party", "mycoolapp")
+  val appFuture = Mastodon.createApp("code.party", "mycoolapp")
   val tokenFuture = appFuture.flatMap(_.login("my_cool@email.com", "thisshouldreallybsupersecure"))
   
   val statusFuture: Future[Status] = appFuture.flatMap { app =>
@@ -77,7 +77,7 @@ object MyMastodonApp extends App {
   implicit val system = ActorSystem() //an ActorSystem
   implicit val materializer = ActorMaterializer() //and an ActorMaterializer
   
-  val appFuture = Mastodon.createApp("marxism.party", "mycoolapp")
+  val appFuture = Mastodon.createApp("code.party", "mycoolapp")
   val tokenFuture = appFuture.flatMap(_.login("my_cool@email.com", "thisshouldreallybsupersecure"))
   
   val accountFuture: Future[Account] = for {
