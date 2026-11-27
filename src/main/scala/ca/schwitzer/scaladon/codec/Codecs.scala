@@ -49,6 +49,7 @@ import ca.schwitzer.scaladon.domain.{
   ScheduledStatus,
   ScheduledStatusParams,
   ScheduledStatusPoll,
+  SearchResults,
   ShallowQuote,
   ShallowTag,
   Status,
@@ -942,4 +943,18 @@ object Codecs:
       ownVotes    <- cursor.get[Option[List[Int]]]("own_votes")
       options     <- cursor.get[List[PollOption]]("options")
     yield Poll(id, expiresAt, expired, multiple, votesCount, votersCount, voted, ownVotes, options)
+  }
+
+  // --- discovery codecs ---
+
+  /** Search always serialises the three arrays (empty when nothing matched); the decoder stays
+    * tolerant of a missing or null category so a server that omits one does not fail the whole
+    * result. `collections` is not modelled and is ignored.
+    */
+  given Decoder[SearchResults] = Decoder.instance { cursor =>
+    for
+      accounts <- cursor.get[Option[List[Account]]]("accounts").map(_.getOrElse(Nil))
+      statuses <- cursor.get[Option[List[Status]]]("statuses").map(_.getOrElse(Nil))
+      hashtags <- cursor.get[Option[List[Tag]]]("hashtags").map(_.getOrElse(Nil))
+    yield SearchResults(accounts, statuses, hashtags)
   }
