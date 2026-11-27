@@ -20,7 +20,7 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
 | HTTP | http4s 0.23.39 (ember client) |
 | JSON | circe 0.14.17 |
-| Tests | 192, `sbt test` |
+| Tests | 404, `sbt test` |
 | JDK | built and tested on JDK 27 |
 
 The 0.3.2 library is **frozen in [`legacy/`](legacy/README.md)** and is not compiled by the build. Read it for endpoint paths, field names and the list of bugs the rewrite must not reproduce.
@@ -165,9 +165,19 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 | `Collections` | not present | full 4.6+ CRUD, items, `forAccount`, `inCollections` |
 | `Notifications` | list/get/clear | list (types, `supported_types`), get, clear, `NotificationFallback` |
 | `OAuth` | `createApp`/`login`/disk cache | discovery, token, revoke, userinfo, authorize URL, PKCE S256, `prompt=create` |
-| Search, Favourites, Blocks, Mutes, Follows, FollowRequests, Reports, Lists, Markers, Filters, Announcements, … | 11 namespaces | not yet ported |
+| `Media` | not present | multipart upload (`POST /api/v2/media`), get/update/delete; 202-on-processing |
+| `Polls` | not present | `Status.poll` decoding, get, vote with repeated `choices[]` |
+| `ScheduledStatuses` | not present | list/get/reschedule/cancel scheduled posts |
+| `AsyncRefreshes` | not present | experimental `v1_alpha` refresh polling for `Mastodon-Async-Refresh` |
+| `Search`, `Favourites` | methods on the client | `GET /api/v2/search`, favourites with cursors |
+| `Blocks`, `Mutes`, `FollowRequests` | nested objects | ported with pagination and authorize/reject |
+| `Reports`, `Lists` | nested objects | report filing and list CRUD/accounts |
+| `Filters`, `Markers` | not present | v2 filters with keywords/statuses, read markers |
+| `Announcements`, `Trends` | not present | announcements with reactions, trending tags/statuses/links |
+| `Suggestions`, `Push` | not present | v2 suggestions, Web Push subscription CRUD |
+| Admin API, Streaming, Endorsements/Featured tags, Preferences, Annual reports, Directory, Tags | 0.3.2 had none | not yet ported |
 | `createApp`, disk cache | implemented | **not ported** (open decision); the OAuth token flow is |
-| Tests | none | 143 |
+| Tests | none | 407 |
 
 ## Repository layout
 
@@ -182,10 +192,11 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 │   ├── domain/                     # pure data + ApiError/ApiException
 │   ├── codec/Codecs.scala          # circe instances
 │   ├── http/                       # transport typeclass and request/response values
-│   ├── api/                        # Endpoint, Runner, Instances, Statuses, Accounts, Profile, Timelines, Collections, Notifications, OAuth, attemptApi
+│   ├── api/                        # Endpoint, Runner, and one algebra per namespace (statuses, media,
+│   │                               # accounts, timelines, collections, notifications, oauth, search, …)
 │   ├── http4s/                     # ember interpreter + MastodonHttp4s.resource
 │   └── translation/                # Future <-> IO
-├── src/test/scala/ca/schwitzer/scaladon/   # 20 suites, 192 tests
+├── src/test/scala/ca/schwitzer/scaladon/   # 42 suites, 404 tests
 └── legacy/                         # frozen 0.3.2: sources, publishing config, CI, defect ledger
 ```
 
@@ -193,9 +204,9 @@ The build never compiles `legacy/`: sbt reads only `src/main/scala` and `src/tes
 
 ## Roadmap
 
-1. Port the remaining namespaces one algebra at a time: `Search`, `Favourites`, `Blocks`, `Mutes`, `Follows`, `FollowRequests`, `Reports`, `Lists`, `Markers`, `Filters`, `Announcements`, then the rest.
+1. Port the remaining namespaces: Admin API, Streaming, endorsements/featured tags, preferences, annual reports, directory and tags.
 2. Decide the fate of `createApp` and the disk cache: caller-supplied tokens, dynamic registration, or neither.
-3. Add law tests (codec round-trips, `mapK` identity/composition) and property tests over recorded fixtures.
+3. Replace the remaining hand-written recorded payloads with fixtures captured from a live v12 server, and add per-algebra `mapK` law properties.
 4. Re-establish publishing (Central Portal) and CI; delete the frozen publishing config once replaced.
 
 ## License and lineage

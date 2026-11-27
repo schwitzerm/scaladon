@@ -1,6 +1,8 @@
 package ca.schwitzer.scaladon.http4s
 
 import cats.effect.{Async, Resource}
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import fs2.io.net.Network
 import cats.syntax.either.*
@@ -22,7 +24,7 @@ import org.http4s.headers.`Content-Type`
 import org.typelevel.ci.CIString
 
 import ca.schwitzer.scaladon.domain.HttpStatus
-import ca.schwitzer.scaladon.http.{HttpBackend, HttpMethod, Request, Response}
+import ca.schwitzer.scaladon.http.{HttpBackend, HttpMethod, Multipart, Request, Response}
 
 /** The http4s interpreter of [[HttpBackend]].
   *
@@ -71,9 +73,15 @@ object Http4sBackend:
               .withEntity(json.noSpaces)
               .withContentType(`Content-Type`(MediaType.application.json))
           case None =>
-            request.form match
-              case Some(fields) => base.withEntity(UrlForm(fields*))
-              case None         => base
+            request.multipart match
+              case Some(multipart) =>
+                base
+                  .withEntity(encodeMultipart(multipart))
+                  .withContentType(`Content-Type`(multipartMediaType))
+              case None =>
+                request.form match
+                  case Some(fields) => base.withEntity(UrlForm(fields*))
+                  case None         => base
       }
 
   private def readBody[F[_]: Async](response: Http4sResponse[F]): F[Response] =
@@ -83,6 +91,34 @@ object Http4sBackend:
         .toMap
       Response(HttpStatus(response.status.code), body, headers)
     }
+
+  /** A fixed boundary keeps the encoding deterministic; it is long enough that a real file is not
+    * reasonably going to contain it.
+    */
+  private val multipartBoundary = "----scaladonBoundary7MA4YWxkTrZu0gW"
+
+  private val multipartMediaType: MediaType =
+    MediaType.multipartType("form-data", Some(multipartBoundary))
+
+  private def encodeMultipart(multipart: Multipart): Array[Byte] =
+    val out = new ByteArrayOutputStream()
+    def write(value: String): Unit = out.write(value.getBytes(StandardCharsets.UTF_8))
+    multipart.parts.foreach { part =>
+      write(s"--$multipartBoundary\r\n")
+      write(s"Content-Disposition: form-data; name=\"${quoted(part.name)}\"")
+      part.filename.foreach(name => write(s"; filename=\"${quoted(name)}\""))
+      write("\r\n")
+      part.contentType.foreach(value => write(s"Content-Type: $value\r\n"))
+      write("\r\n")
+      out.write(part.bytes)
+      write("\r\n")
+    }
+    write(s"--$multipartBoundary--\r\n")
+    out.toByteArray
+
+  /** Keep a header parameter on one line and inside its quoted string. */
+  private def quoted(value: String): String =
+    value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "").replace("\n", "")
 
   private def toMethod(method: HttpMethod): Method = method match
     case HttpMethod.GET    => Method.GET

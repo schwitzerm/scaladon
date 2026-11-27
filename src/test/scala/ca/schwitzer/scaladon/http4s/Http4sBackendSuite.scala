@@ -2,6 +2,7 @@ package ca.schwitzer.scaladon.http4s
 
 import cats.effect.{IO, Ref}
 import cats.syntax.applicative.*
+import java.nio.charset.StandardCharsets
 import scala.concurrent.duration.*
 import io.circe.Json
 import munit.CatsEffectSuite
@@ -11,7 +12,15 @@ import org.typelevel.ci.CIString
 
 import ca.schwitzer.scaladon.Mastodon
 import ca.schwitzer.scaladon.domain.{ApiError, ApiException, HttpStatus, Id}
-import ca.schwitzer.scaladon.http.{BearerToken, Host, HttpBackend, HttpMethod, Request}
+import ca.schwitzer.scaladon.http.{
+  BearerToken,
+  Host,
+  HttpBackend,
+  HttpMethod,
+  Multipart,
+  MultipartPart,
+  Request
+}
 
 class Http4sBackendSuite extends CatsEffectSuite:
 
@@ -148,6 +157,43 @@ class Http4sBackendSuite extends CatsEffectSuite:
       )
       assert(seen.head.body.contains("grant_type=authorization_code"), seen.head.body)
       assert(seen.head.body.contains("scope=read"), seen.head.body)
+  }
+
+  test("a multipart body is sent as multipart/form-data with a boundary and file part") {
+    val file = MultipartPart.file(
+      "file",
+      "cat.png",
+      "image/png",
+      "PNGDATA".getBytes(StandardCharsets.UTF_8)
+    )
+    for
+      pair <- recordingBackend(Status.Accepted, """{"id":"1"}""")
+      (ref, http) = pair
+      _ <- http.run(
+             Request(
+               HttpMethod.POST,
+               "https://code.party/api/v2/media",
+               multipart = Some(Multipart(List(file)))
+             )
+           )
+      seen <- ref.get
+    yield
+      val request = seen.head.request
+      assertEquals(request.contentType.map(_.mediaType.mainType), Some("multipart"))
+      assertEquals(request.contentType.map(_.mediaType.subType), Some("form-data"))
+      val boundary = request.contentType.flatMap(_.mediaType.extensions.get("boundary"))
+      assert(boundary.nonEmpty, s"missing boundary in ${request.contentType}")
+      val prefix = s"--${boundary.get}\r\n"
+      assert(seen.head.body.startsWith(prefix), seen.head.body)
+      assert(
+        seen.head.body.contains(
+          "Content-Disposition: form-data; name=\"file\"; filename=\"cat.png\"\r\n"
+        ),
+        seen.head.body
+      )
+      assert(seen.head.body.contains("Content-Type: image/png\r\n"), seen.head.body)
+      assert(seen.head.body.contains("PNGDATA"), seen.head.body)
+      assert(seen.head.body.endsWith(s"--${boundary.get}--\r\n"), seen.head.body)
   }
 
   test("PUT, PATCH and DELETE map to their http4s methods") {

@@ -14,7 +14,13 @@ import ca.schwitzer.scaladon.domain.{
   AccountState,
   AccountStateError,
   AccountsConfiguration,
+  Announcement,
+  AnnouncementMention,
+  AnnouncementReaction,
+  AnnouncementStatus,
   ApiVersions,
+  AsyncRefreshState,
+  AsyncRefreshStatus,
   Collection,
   CollectionItem,
   CollectionItemState,
@@ -22,37 +28,65 @@ import ca.schwitzer.scaladon.domain.{
   CollectionsConfiguration,
   Context,
   CredentialAccount,
+  CustomEmoji,
   FeedAccess,
+  Filter,
+  FilterAction,
+  FilterContext,
+  FilterKeyword,
+  FilterStatus,
+  GroupedNotifications,
   Id,
   Instance,
   InstanceConfiguration,
   InstanceUrls,
+  Marker,
+  MarkerTimeline,
+  MastodonList,
+  MediaAttachment,
   MediaConfiguration,
+  MediaType,
   Notification,
   NotificationFallback,
+  NotificationGroup,
   OAuthServerMetadata,
   OAuthToken,
+  Poll,
+  PollOption,
   PollsConfiguration,
   PreviewCard,
   PreviewCardType,
   Profile,
   ProfileField,
+  PushAlerts,
+  PushPolicy,
+  PushSubscription,
   Quote,
   QuoteApprovalPolicy,
   QuoteState,
   Registrations,
   Relationship,
+  RepliesPolicy,
+  Report,
+  ReportCategory,
   ScheduledStatus,
   ScheduledStatusParams,
   ScheduledStatusPoll,
+  SearchResults,
   ShallowQuote,
   ShallowTag,
   Status,
   StatusPostResult,
   StatusesConfiguration,
+  Suggestion,
+  SuggestionSource,
+  Tag,
+  TagHistory,
   TimelineAccess,
   TimelinesAccess,
   TranslationConfiguration,
+  TrendLink,
+  UnreadCount,
   UserInfo,
   VapidConfiguration,
   Visibility
@@ -200,6 +234,7 @@ object Codecs:
         text               <- cursor.get[Option[String]]("text").map(_.filter(_.nonEmpty))
         card               <- cursor.get[Option[PreviewCard]]("card")
         quote              <- cursor.get[Option[Quote]]("quote")
+        poll               <- cursor.get[Option[Poll]]("poll")
       yield Status(
         id = id,
         uri = uri,
@@ -226,7 +261,8 @@ object Codecs:
         language = language,
         text = text,
         card = card,
-        quote = quote
+        quote = quote,
+        poll = poll
       )
     }
 
@@ -656,6 +692,25 @@ object Codecs:
     yield Context(ancestors, descendants)
   }
 
+  // Declared before its consumers (`ScheduledStatus`) because a given defined later in this
+  // object is not visible to implicit search here.
+  given Decoder[MediaType] = Decoder.decodeString.emap(value =>
+    MediaType.fromWire(value).toRight(s"Unknown media type '$value'")
+  )
+
+  given Decoder[MediaAttachment] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[Id]("id")
+      kind        <- cursor.get[MediaType]("type")
+      url         <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      previewUrl  <- cursor.get[Option[String]]("preview_url").map(_.filter(_.nonEmpty))
+      remoteUrl   <- cursor.get[Option[String]]("remote_url").map(_.filter(_.nonEmpty))
+      textUrl     <- cursor.get[Option[String]]("text_url").map(_.filter(_.nonEmpty))
+      description <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
+      blurhash    <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
+    yield MediaAttachment(id, kind, url, previewUrl, remoteUrl, textUrl, description, blurhash)
+  }
+
   given Decoder[ScheduledStatusPoll] = Decoder.instance { cursor =>
     for
       options    <- cursor.get[List[String]]("options")
@@ -700,7 +755,8 @@ object Codecs:
       id          <- cursor.get[Id]("id")
       scheduledAt <- cursor.get[Instant]("scheduled_at")
       params      <- cursor.get[ScheduledStatusParams]("params")
-    yield ScheduledStatus(id, scheduledAt, params)
+      media       <- cursor.get[Option[List[MediaAttachment]]]("media_attachments").map(_.getOrElse(Nil))
+    yield ScheduledStatus(id, scheduledAt, params, media)
   }
 
   /** `POST /api/v1/statuses` returns a `ScheduledStatus` exactly when `scheduled_at` is present. */
@@ -876,3 +932,368 @@ object Codecs:
     "profile",
     "picture"
   )(UserInfo.apply)
+
+  // --- shared entities codecs ---
+
+  /** Tag history counts are integers in the docs but numeric strings on real payloads. */
+  private val intLike: Decoder[Int] = Decoder.decodeJson.emap { json =>
+    json.asNumber
+      .flatMap(_.toInt)
+      .orElse(json.asString.flatMap(_.toIntOption))
+      .toRight("expected an integer or a numeric string")
+  }
+
+  given Decoder[TagHistory] = Decoder.instance { cursor =>
+    for
+      day      <- cursor.get[String]("day")
+      uses     <- cursor.get[Int]("uses")(using intLike)
+      accounts <- cursor.get[Int]("accounts")(using intLike)
+    yield TagHistory(day, uses, accounts)
+  }
+
+  given Decoder[Tag] = Decoder.instance { cursor =>
+    for
+      name      <- cursor.get[String]("name")
+      url       <- cursor.get[String]("url")
+      history   <- cursor.get[Option[List[TagHistory]]]("history").map(_.getOrElse(Nil))
+      following <- cursor.get[Option[Boolean]]("following")
+    yield Tag(name, url, history, following)
+  }
+
+  given Decoder[PollOption] =
+    Decoder.forProduct2("title", "votes_count")(PollOption.apply)
+
+  given Decoder[Poll] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[Id]("id")
+      expiresAt   <- cursor.get[Option[Instant]]("expires_at")
+      expired     <- cursor.get[Boolean]("expired")
+      multiple    <- cursor.get[Boolean]("multiple")
+      votesCount  <- cursor.get[Int]("votes_count")
+      votersCount <- cursor.get[Option[Int]]("voters_count")
+      voted       <- cursor.get[Option[Boolean]]("voted")
+      ownVotes    <- cursor.get[Option[List[Int]]]("own_votes")
+      options     <- cursor.get[List[PollOption]]("options")
+    yield Poll(id, expiresAt, expired, multiple, votesCount, votersCount, voted, ownVotes, options)
+  }
+
+  // --- discovery codecs ---
+
+  /** Search always serialises the three arrays (empty when nothing matched); the decoder stays
+    * tolerant of a missing or null category so a server that omits one does not fail the whole
+    * result. `collections` is not modelled and is ignored.
+    */
+  given Decoder[SearchResults] = Decoder.instance { cursor =>
+    for
+      accounts <- cursor.get[Option[List[Account]]]("accounts").map(_.getOrElse(Nil))
+      statuses <- cursor.get[Option[List[Status]]]("statuses").map(_.getOrElse(Nil))
+      hashtags <- cursor.get[Option[List[Tag]]]("hashtags").map(_.getOrElse(Nil))
+    yield SearchResults(accounts, statuses, hashtags)
+  }
+
+  // --- async-refresh codecs ---
+
+  given Decoder[AsyncRefreshState] = Decoder.decodeString.emap(value =>
+    AsyncRefreshState.fromWire(value).toRight(s"Unknown async refresh state '$value'")
+  )
+
+  given Decoder[AsyncRefreshStatus] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[String]("id")
+      status      <- cursor.get[AsyncRefreshState]("status")
+      resultCount <- cursor.get[Option[Int]]("result_count")
+    yield AsyncRefreshStatus(id, status, resultCount)
+  }
+  // --- notifications-v2 codecs ---
+
+  given Decoder[NotificationGroup] = Decoder.instance { cursor =>
+    for
+      groupKey                 <- cursor.get[String]("group_key")
+      notificationsCount       <- cursor.get[Int]("notifications_count")
+      kind                     <- cursor.get[String]("type")
+      mostRecentNotificationId <- cursor.get[Id]("most_recent_notification_id")
+      pageMinId                <- cursor.get[Option[Id]]("page_min_id")
+      pageMaxId                <- cursor.get[Option[Id]]("page_max_id")
+      latestPageNotificationAt <- cursor.get[Option[Instant]]("latest_page_notification_at")
+      sampleAccountIds         <- cursor.get[List[Id]]("sample_account_ids")
+      statusId                 <- cursor.get[Option[Id]]("status_id")
+      collection               <- cursor.get[Option[Collection]]("collection")
+      fallback                 <- cursor.get[Option[NotificationFallback]]("fallback")
+    yield NotificationGroup(
+      groupKey = groupKey,
+      notificationsCount = notificationsCount,
+      kind = kind,
+      mostRecentNotificationId = mostRecentNotificationId,
+      pageMinId = pageMinId,
+      pageMaxId = pageMaxId,
+      latestPageNotificationAt = latestPageNotificationAt,
+      sampleAccountIds = sampleAccountIds,
+      statusId = statusId,
+      collection = collection,
+      fallback = fallback
+    )
+  }
+
+  given Decoder[GroupedNotifications] = Decoder.instance { cursor =>
+    for
+      accounts   <- cursor.get[List[Account]]("accounts")
+      statuses   <- cursor.get[List[Status]]("statuses")
+      groups     <- cursor.get[List[NotificationGroup]]("notification_groups")
+    yield GroupedNotifications(accounts, statuses, groups)
+  }
+
+  given Decoder[UnreadCount] = Decoder.forProduct1("count")(UnreadCount.apply)
+  // --- reports and lists codecs ---
+
+  given Decoder[ReportCategory] = Decoder.decodeString.emap(value =>
+    ReportCategory.fromWire(value).toRight(s"Unknown report category '$value'")
+  )
+
+  given Decoder[RepliesPolicy] = Decoder.decodeString.emap(value =>
+    RepliesPolicy.fromWire(value).toRight(s"Unknown replies policy '$value'")
+  )
+
+  /** The id arrays are nullable on the wire (`rule_ids` is `null` in the documented example), so a
+    * missing or `null` array becomes `Nil`; an empty comment becomes `None`.
+    */
+  given Decoder[Report] = Decoder.instance { cursor =>
+    for
+      id            <- cursor.get[Id]("id")
+      actionTaken   <- cursor.get[Boolean]("action_taken")
+      actionTakenAt <- cursor.get[Option[Instant]]("action_taken_at")
+      category      <- cursor.get[ReportCategory]("category")
+      comment       <- cursor.get[Option[String]]("comment").map(_.filter(_.nonEmpty))
+      forwarded     <- cursor.get[Boolean]("forwarded")
+      createdAt     <- cursor.get[Instant]("created_at")
+      statusIds     <- cursor.get[Option[List[Id]]]("status_ids").map(_.getOrElse(Nil))
+      collectionIds <- cursor.get[Option[List[Id]]]("collection_ids").map(_.getOrElse(Nil))
+      ruleIds       <- cursor.get[Option[List[Id]]]("rule_ids").map(_.getOrElse(Nil))
+      targetAccount <- cursor.get[Account]("target_account")
+    yield Report(
+      id,
+      actionTaken,
+      actionTakenAt,
+      category,
+      comment,
+      forwarded,
+      createdAt,
+      statusIds,
+      collectionIds,
+      ruleIds,
+      targetAccount
+    )
+  }
+
+  /** `exclusive` arrived in Mastodon 4.2; an older payload omits it and gets the server default. */
+  given Decoder[MastodonList] = Decoder.instance { cursor =>
+    for
+      id            <- cursor.get[Id]("id")
+      title         <- cursor.get[String]("title")
+      repliesPolicy <- cursor.get[RepliesPolicy]("replies_policy")
+      exclusive     <- cursor.get[Option[Boolean]]("exclusive").map(_.getOrElse(false))
+    yield MastodonList(id, title, repliesPolicy, exclusive)
+  }
+  // --- filters-markers codecs ---
+
+  given Decoder[FilterContext] = Decoder.decodeString.emap(value =>
+    FilterContext.fromWire(value).toRight(s"Unknown filter context '$value'")
+  )
+
+  given Decoder[FilterAction] = Decoder.decodeString.emap(value =>
+    FilterAction.fromWire(value).toRight(s"Unknown filter action '$value'")
+  )
+
+  given Decoder[FilterKeyword] =
+    Decoder.forProduct3("id", "keyword", "whole_word")(FilterKeyword.apply)
+
+  given Decoder[FilterStatus] =
+    Decoder.forProduct2("id", "status_id")(FilterStatus.apply)
+
+  given Decoder[Filter] = Decoder.instance { cursor =>
+    for
+      id         <- cursor.get[Id]("id")
+      title      <- cursor.get[String]("title")
+      context    <- cursor.get[List[FilterContext]]("context")
+      expiresAt  <- cursor.get[Option[Instant]]("expires_at")
+      action     <- cursor.get[FilterAction]("filter_action")
+      keywords   <- cursor.get[Option[List[FilterKeyword]]]("keywords").map(_.getOrElse(Nil))
+      statuses   <- cursor.get[Option[List[FilterStatus]]]("statuses").map(_.getOrElse(Nil))
+    yield Filter(id, title, context, expiresAt, action, keywords, statuses)
+  }
+
+  given Decoder[MarkerTimeline] = Decoder.decodeString.emap(value =>
+    MarkerTimeline.fromWire(value).toRight(s"Unknown marker timeline '$value'")
+  )
+
+  given Decoder[Marker] =
+    Decoder.forProduct3("last_read_id", "version", "updated_at")(Marker.apply)
+
+  /** The markers payload is a hash keyed by timeline; keys are validated so a new timeline this
+    * version does not know fails loudly instead of being silently dropped (legacy #9).
+    */
+  given Decoder[Map[MarkerTimeline, Marker]] =
+    Decoder.decodeMap[String, Marker].emap { entries =>
+      entries.toList.foldLeft[Either[String, Map[MarkerTimeline, Marker]]](Right(Map.empty)) {
+        case (soFar, (key, marker)) =>
+          for
+            markers  <- soFar
+            timeline <- MarkerTimeline.fromWire(key).toRight(s"Unknown marker timeline '$key'")
+          yield markers.updated(timeline, marker)
+      }
+    }
+  // --- announcements and trends codecs ---
+
+  given Decoder[CustomEmoji] = Decoder.instance { cursor =>
+    for
+      shortcode       <- cursor.get[String]("shortcode")
+      url             <- cursor.get[String]("url")
+      staticUrl       <- cursor.get[String]("static_url")
+      visibleInPicker <- cursor.get[Option[Boolean]]("visible_in_picker").map(_.getOrElse(false))
+      category        <- cursor.get[Option[String]]("category").map(_.filter(_.nonEmpty))
+    yield CustomEmoji(shortcode, url, staticUrl, visibleInPicker, category)
+  }
+
+  given Decoder[AnnouncementMention] =
+    Decoder.forProduct4("id", "username", "url", "acct")(AnnouncementMention.apply)
+
+  given Decoder[AnnouncementStatus] =
+    Decoder.forProduct2("id", "url")(AnnouncementStatus.apply)
+
+  given Decoder[AnnouncementReaction] = Decoder.instance { cursor =>
+    for
+      name      <- cursor.get[String]("name")
+      count     <- cursor.get[Int]("count")
+      me        <- cursor.get[Option[Boolean]]("me").map(_.getOrElse(false))
+      url       <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      staticUrl <- cursor.get[Option[String]]("static_url").map(_.filter(_.nonEmpty))
+    yield AnnouncementReaction(name, count, me, url, staticUrl)
+  }
+
+  given Decoder[Announcement] = Decoder.instance { cursor =>
+    for
+      id               <- cursor.get[Id]("id")
+      content          <- cursor.get[String]("content")
+      startsAt         <- cursor.get[Option[Instant]]("starts_at")
+      endsAt           <- cursor.get[Option[Instant]]("ends_at")
+      allDay           <- cursor.get[Option[Boolean]]("all_day").map(_.getOrElse(false))
+      publishedAt      <- cursor.get[Instant]("published_at")
+      updatedAt        <- cursor.get[Instant]("updated_at")
+      read             <- cursor.get[Option[Boolean]]("read")
+      mentions         <- cursor.get[Option[List[AnnouncementMention]]]("mentions").map(_.getOrElse(Nil))
+      statuses         <- cursor.get[Option[List[AnnouncementStatus]]]("statuses").map(_.getOrElse(Nil))
+      tags             <- cursor.get[Option[List[ShallowTag]]]("tags").map(_.getOrElse(Nil))
+      emojis           <- cursor.get[Option[List[CustomEmoji]]]("emojis").map(_.getOrElse(Nil))
+      reactions        <- cursor.get[Option[List[AnnouncementReaction]]]("reactions").map(_.getOrElse(Nil))
+      reactionsAllowed <- cursor.get[Option[Boolean]]("reactions_allowed").map(_.getOrElse(false))
+    yield Announcement(
+      id = id,
+      content = content,
+      startsAt = startsAt,
+      endsAt = endsAt,
+      allDay = allDay,
+      publishedAt = publishedAt,
+      updatedAt = updatedAt,
+      read = read,
+      mentions = mentions,
+      statuses = statuses,
+      tags = tags,
+      emojis = emojis,
+      reactions = reactions,
+      reactionsAllowed = reactionsAllowed
+    )
+  }
+
+  given Decoder[TrendLink] = Decoder.instance { cursor =>
+    for
+      url          <- cursor.get[String]("url")
+      title        <- cursor.get[String]("title")
+      description  <- cursor.get[Option[String]]("description").map(_.getOrElse(""))
+      cardType     <- cursor.get[PreviewCardType]("type")
+      authorName   <- cursor.get[Option[String]]("author_name").map(_.getOrElse(""))
+      authorUrl    <- cursor.get[Option[String]]("author_url").map(_.getOrElse(""))
+      providerName <- cursor.get[Option[String]]("provider_name").map(_.getOrElse(""))
+      providerUrl  <- cursor.get[Option[String]]("provider_url").map(_.getOrElse(""))
+      html         <- cursor.get[Option[String]]("html").map(_.getOrElse(""))
+      width        <- cursor.get[Option[Int]]("width").map(_.getOrElse(0))
+      height       <- cursor.get[Option[Int]]("height").map(_.getOrElse(0))
+      image        <- cursor.get[Option[String]]("image").map(_.filter(_.nonEmpty))
+      embedUrl     <- cursor.get[Option[String]]("embed_url").map(_.getOrElse(""))
+      blurhash     <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
+      history      <- cursor.get[Option[List[TagHistory]]]("history").map(_.getOrElse(Nil))
+    yield TrendLink(
+      url = url,
+      title = title,
+      description = description,
+      cardType = cardType,
+      authorName = authorName,
+      authorUrl = authorUrl,
+      providerName = providerName,
+      providerUrl = providerUrl,
+      html = html,
+      width = width,
+      height = height,
+      image = image,
+      embedUrl = embedUrl,
+      blurhash = blurhash,
+      history = history
+    )
+  }
+
+  // --- suggestions and push codecs ---
+
+  given Decoder[SuggestionSource] = Decoder.decodeString.emap(value =>
+    SuggestionSource.fromWire(value).toRight(s"Unknown suggestion source '$value'")
+  )
+
+  /** `sources` is the current field; the deprecated scalar `source` is ignored. */
+  given Decoder[Suggestion] = Decoder.instance { cursor =>
+    for
+      sources <- cursor.get[List[SuggestionSource]]("sources")
+      account <- cursor.get[Account]("account")
+    yield Suggestion(sources, account)
+  }
+
+  given Decoder[PushPolicy] = Decoder.decodeString.emap(value =>
+    PushPolicy.fromWire(value).toRight(s"Unknown push policy '$value'")
+  )
+
+  given Decoder[PushAlerts] = Decoder.instance { cursor =>
+    for
+      mention       <- flag(cursor, "mention")
+      quote         <- flag(cursor, "quote")
+      status        <- flag(cursor, "status")
+      reblog        <- flag(cursor, "reblog")
+      follow        <- flag(cursor, "follow")
+      followRequest <- flag(cursor, "follow_request")
+      favourite     <- flag(cursor, "favourite")
+      poll          <- flag(cursor, "poll")
+      update        <- flag(cursor, "update")
+      quotedUpdate  <- flag(cursor, "quoted_update")
+      adminSignUp   <- flag(cursor, "admin.sign_up")
+      adminReport   <- flag(cursor, "admin.report")
+    yield PushAlerts(
+      mention = mention,
+      quote = quote,
+      status = status,
+      reblog = reblog,
+      follow = follow,
+      followRequest = followRequest,
+      favourite = favourite,
+      poll = poll,
+      update = update,
+      quotedUpdate = quotedUpdate,
+      adminSignUp = adminSignUp,
+      adminReport = adminReport
+    )
+  }
+
+  given Decoder[PushSubscription] = Decoder.instance { cursor =>
+    for
+      id        <- cursor.get[Long]("id")
+      endpoint  <- cursor.get[String]("endpoint")
+      standard  <- flag(cursor, "standard")
+      alerts    <- cursor.get[Option[PushAlerts]]("alerts").map(_.getOrElse(PushAlerts()))
+      serverKey <- cursor.get[String]("server_key")
+      policy    <- cursor.get[Option[PushPolicy]]("policy").map(_.getOrElse(PushPolicy.All))
+    yield PushSubscription(id, endpoint, standard, alerts, serverKey, policy)
+  }

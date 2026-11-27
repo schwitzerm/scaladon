@@ -260,6 +260,185 @@ class NotificationsSuite extends CatsEffectSuite:
       assertEquals(sent, 0)
   }
 
+  private val groupedJson: String =
+    s"""{
+       |  "accounts": [$accountJson],
+       |  "statuses": [$statusJson],
+       |  "notification_groups": [
+       |    {
+       |      "group_key": "favourite-103186126728896492-479000",
+       |      "notifications_count": 2,
+       |      "type": "favourite",
+       |      "most_recent_notification_id": "196014",
+       |      "page_min_id": "196013",
+       |      "page_max_id": "196014",
+       |      "latest_page_notification_at": "2024-08-23T08:59:56.743Z",
+       |      "sample_account_ids": ["971724"],
+       |      "status_id": "103186126728896492"
+       |    }
+       |  ]
+       |}""".stripMargin
+
+  private val singleGroupJson: String =
+    s"""{
+       |  "accounts": [$accountJson],
+       |  "statuses": [],
+       |  "notification_groups": [
+       |    {
+       |      "group_key": "added_to_collection-116131056935959117-479001",
+       |      "notifications_count": 1,
+       |      "type": "added_to_collection",
+       |      "most_recent_notification_id": "40000001",
+       |      "sample_account_ids": ["971724"],
+       |      "collection": $collectionJson,
+       |      "fallback": {
+       |        "title": "ZSC added you to a collection",
+       |        "summary": null,
+       |        "details": "Open the web app for the full story."
+       |      }
+       |    }
+       |  ]
+       |}""".stripMargin
+
+  test("get passes supported_types so the server can attach a fallback") {
+    for
+      pair      <- recording(Response(HttpStatus.Ok, mentionJson))
+      (ref, api) = pair
+      result    <- api.get(Id("34975861"), supportedTypes = List("mention", "favourite"))
+      requests  <- ref.get
+    yield
+      assertEquals(result.id.value, "34975861")
+      assertEquals(
+        requests.head.url,
+        "https://code.party/api/v1/notifications/34975861" +
+          "?supported_types%5B%5D=mention&supported_types%5B%5D=favourite"
+      )
+  }
+
+  test("grouped repeats the v2 array filters and decodes the hoisted entities") {
+    for
+      pair      <- recording(Response(HttpStatus.Ok, groupedJson))
+      (ref, api) = pair
+      result    <- api.grouped(
+                     types = List("favourite", "follow"),
+                     excludeTypes = List("reblog"),
+                     supportedTypes = List("favourite"),
+                     limit = Some(20)
+                   )
+      requests  <- ref.get
+    yield
+      assertEquals(result.accounts.map(_.username), List("zsc"))
+      assertEquals(result.statuses.map(_.id.value), List("103186126728896492"))
+      val group = result.notificationGroups.head
+      assertEquals(group.groupKey, "favourite-103186126728896492-479000")
+      assertEquals(group.notificationsCount, 2)
+      assertEquals(group.kind, "favourite")
+      assertEquals(group.mostRecentNotificationId.value, "196014")
+      assertEquals(group.pageMinId.map(_.value), Some("196013"))
+      assertEquals(group.pageMaxId.map(_.value), Some("196014"))
+      assertEquals(group.latestPageNotificationAt.map(_.toString), Some("2024-08-23T08:59:56.743Z"))
+      assertEquals(group.sampleAccountIds.map(_.value), List("971724"))
+      assertEquals(group.statusId.map(_.value), Some("103186126728896492"))
+      val request = requests.head
+      assertEquals(request.method, HttpMethod.GET)
+      assertEquals(
+        request.url,
+        "https://code.party/api/v2/notifications" +
+          "?types%5B%5D=favourite&types%5B%5D=follow" +
+          "&exclude_types%5B%5D=reblog" +
+          "&supported_types%5B%5D=favourite" +
+          "&limit=20"
+      )
+      assertEquals(request.headers.get("Authorization"), Some("Bearer secret"))
+  }
+
+  test("group decodes page bounds, collection and fallback and passes supported_types") {
+    for
+      pair     <- recording(Response(HttpStatus.Ok, singleGroupJson))
+      (ref, api) = pair
+      result   <- api.group(
+                    "added_to_collection-116131056935959117-479001",
+                    supportedTypes = List("mention")
+                  )
+      requests <- ref.get
+    yield
+      val group = result.notificationGroups.head
+      assertEquals(group.kind, "added_to_collection")
+      assertEquals(group.pageMinId, None)
+      assertEquals(group.collection.map(_.name), Some("Excellent people"))
+      assertEquals(group.fallback.map(_.title), Some("ZSC added you to a collection"))
+      assertEquals(group.fallback.flatMap(_.details), Some("Open the web app for the full story."))
+      assertEquals(
+        requests.head.url,
+        "https://code.party/api/v2/notifications" +
+          "/added_to_collection-116131056935959117-479001?supported_types%5B%5D=mention"
+      )
+  }
+
+  test("dismissGroup posts to the group dismiss path with no body") {
+    for
+      pair      <- recording(Response(HttpStatus.Ok, "{}"))
+      (ref, api) = pair
+      result    <- api.dismissGroup("favourite-103186126728896492-479000").attempt
+      requests  <- ref.get
+    yield
+      assertEquals(result, Right(()))
+      val request = requests.head
+      assertEquals(request.method, HttpMethod.POST)
+      assertEquals(
+        request.url,
+        "https://code.party/api/v2/notifications/favourite-103186126728896492-479000/dismiss"
+      )
+      assertEquals(request.body, None)
+      assertEquals(request.headers.get("Authorization"), Some("Bearer secret"))
+  }
+
+  test("unreadCount reads the capped v2 count") {
+    for
+      pair      <- recording(Response(HttpStatus.Ok, """{"count":42}"""))
+      (ref, api) = pair
+      result    <- api.unreadCount()
+      requests  <- ref.get
+    yield
+      assertEquals(result.count, 42)
+      assertEquals(requests.head.method, HttpMethod.GET)
+      assertEquals(requests.head.url, "https://code.party/api/v2/notifications/unread_count")
+      assertEquals(requests.head.headers.get("Authorization"), Some("Bearer secret"))
+  }
+
+  test("a v2 429 becomes RateLimited with Retry-After and is retryable") {
+    for
+      pair <- recording(
+                Response(HttpStatus(429), """{"error":"Too many requests"}""", Map("Retry-After" -> "5"))
+              )
+      (_, api) = pair
+      result   <- api.grouped().attempt
+    yield
+      val error = apiError(result)
+      assertEquals(error, ApiError.RateLimited(Some(5.seconds), Some("Too many requests")))
+      assertEquals(error.retryable, true)
+  }
+
+  test("an anonymous client fails a v2 call without touching the network") {
+    for
+      calls <- Ref.of[IO, Int](0)
+      backend = HttpBackend.of[IO](_ => calls.update(_ + 1).as(Response(HttpStatus.Ok, "{}")))
+      api     = Notifications.live[IO](EndpointRunner.anonymous(backend, host))
+      result <- api.unreadCount().attempt
+      sent   <- calls.get
+    yield
+      assertEquals(apiError(result), ApiError.NotAuthenticated("/api/v2/notifications/unread_count"))
+      assertEquals(sent, 0)
+  }
+
+  test("a malformed v2 group body becomes a Decode error") {
+    for
+      pair      <- recording(Response(HttpStatus.Ok, """{"notification_groups":[]}"""))
+      (_, api)   = pair
+      result    <- api.grouped().attempt
+    yield assert(apiError(result).isInstanceOf[ApiError.Decode], s"got ${apiError(result)}")
+  }
+
   test("mapK identity keeps the algebra's behaviour") {
     val identity = new ~>[IO, IO]:
       def apply[A](fa: IO[A]): IO[A] = fa
