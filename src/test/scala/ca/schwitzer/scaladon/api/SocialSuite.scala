@@ -171,7 +171,7 @@ class SocialSuite extends CatsEffectSuite:
   test("a follow request for an unknown account raises NotFound") {
     for
       pair   <- recording(Response(HttpStatus.NotFound, """{"error":"Record not found"}"""))
-      (ref, http) = pair
+      (_, http) = pair
       api = FollowRequests.live[IO](EndpointRunner(http, host, Some(token)))
       result <- api.authorize(Id("42")).attempt
     yield assertEquals(apiError(result).isNotFound, true)
@@ -185,7 +185,7 @@ class SocialSuite extends CatsEffectSuite:
     )
     for
       pair   <- recording(response)
-      (ref, http) = pair
+      (_, http) = pair
       api = Blocks.live[IO](EndpointRunner(http, host, Some(token)))
       result <- api.list().attempt
     yield
@@ -197,7 +197,7 @@ class SocialSuite extends CatsEffectSuite:
   test("a malformed mute list body becomes a Decode error") {
     for
       pair   <- recording(Response(HttpStatus.Ok, """{"id":"1"}"""))
-      (ref, http) = pair
+      (_, http) = pair
       api = Mutes.live[IO](EndpointRunner(http, host, Some(token)))
       result <- api.list().attempt
     yield assert(apiError(result).isInstanceOf[ApiError.Decode], apiError(result).toString)
