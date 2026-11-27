@@ -30,6 +30,8 @@ import ca.schwitzer.scaladon.domain.{
   MediaConfiguration,
   Notification,
   NotificationFallback,
+  OAuthServerMetadata,
+  OAuthToken,
   PollsConfiguration,
   PreviewCard,
   PreviewCardType,
@@ -51,6 +53,7 @@ import ca.schwitzer.scaladon.domain.{
   TimelineAccess,
   TimelinesAccess,
   TranslationConfiguration,
+  UserInfo,
   VapidConfiguration,
   Visibility
 }
@@ -796,3 +799,78 @@ object Codecs:
       fallback = fallback
     )
   }
+  // --- oauth codecs ---
+
+  /** The Token entity's `created_at` is a UNIX timestamp in seconds, unlike every other timestamp
+    * in the API. An RFC 3339 string is also accepted so a proxy or a future server revision does
+    * not break token exchange.
+    */
+  private val tokenCreatedAt: Decoder[Instant] =
+    Decoder.instance { cursor =>
+      cursor.value.asNumber
+        .flatMap(_.toLong)
+        .map(Instant.ofEpochSecond)
+        .orElse(cursor.value.asString.flatMap(value => Try(Instant.parse(value)).toOption))
+        .toRight(
+          DecodingFailure(
+            "created_at must be a UNIX timestamp in seconds or an RFC 3339 string",
+            cursor.history
+          )
+        )
+    }
+
+  given Decoder[OAuthToken] = Decoder.instance { cursor =>
+    for
+      accessToken <- cursor.get[String]("access_token")
+      tokenType   <- cursor.get[String]("token_type")
+      scope       <- cursor.get[String]("scope").map(_.split(' ').toList.filter(_.nonEmpty))
+      createdAt   <- cursor.get[Json]("created_at").flatMap(tokenCreatedAt.decodeJson)
+      expiresIn   <- cursor.get[Option[Long]]("expires_in")
+    yield OAuthToken(accessToken, tokenType, scope, createdAt, expiresIn)
+  }
+
+  given Decoder[OAuthServerMetadata] = Decoder.instance { cursor =>
+    def strings(field: String): Decoder.Result[List[String]] =
+      cursor.get[Option[List[String]]](field).map(_.getOrElse(Nil))
+
+    for
+      issuer               <- cursor.get[String]("issuer")
+      documentation        <- cursor.get[Option[String]]("service_documentation")
+      authorization        <- cursor.get[String]("authorization_endpoint")
+      token                <- cursor.get[String]("token_endpoint")
+      appRegistration      <- cursor.get[Option[String]]("app_registration_endpoint")
+      revocation           <- cursor.get[Option[String]]("revocation_endpoint")
+      userinfo             <- cursor.get[Option[String]]("userinfo_endpoint")
+      scopes               <- strings("scopes_supported")
+      responseTypes        <- strings("response_types_supported")
+      responseModes        <- strings("response_modes_supported")
+      grantTypes           <- strings("grant_types_supported")
+      codeChallengeMethods <- strings("code_challenge_methods_supported")
+      authMethods          <- strings("token_endpoint_auth_methods_supported")
+      promptValues         <- strings("prompt_values_supported")
+    yield OAuthServerMetadata(
+      issuer = issuer,
+      serviceDocumentation = documentation,
+      authorizationEndpoint = authorization,
+      tokenEndpoint = token,
+      appRegistrationEndpoint = appRegistration,
+      revocationEndpoint = revocation,
+      userinfoEndpoint = userinfo,
+      scopesSupported = scopes,
+      responseTypesSupported = responseTypes,
+      responseModesSupported = responseModes,
+      grantTypesSupported = grantTypes,
+      codeChallengeMethodsSupported = codeChallengeMethods,
+      tokenEndpointAuthMethodsSupported = authMethods,
+      promptValuesSupported = promptValues
+    )
+  }
+
+  given Decoder[UserInfo] = Decoder.forProduct6(
+    "iss",
+    "sub",
+    "name",
+    "preferred_username",
+    "profile",
+    "picture"
+  )(UserInfo.apply)
