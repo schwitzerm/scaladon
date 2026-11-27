@@ -4,14 +4,32 @@ import cats.{MonadThrow, ~>}
 
 import ca.schwitzer.scaladon.api.{
   Accounts,
+  Announcements,
+  AsyncRefreshes,
+  Blocks,
   Collections,
   EndpointRunner,
+  Favourites,
+  Filters,
+  FollowRequests,
+  Follows,
   Instances,
+  Lists,
+  Markers,
+  Media,
+  Mutes,
   Notifications,
   OAuth,
+  Polls,
   Profile,
+  Push,
+  Reports,
+  ScheduledStatuses,
+  Search,
   Statuses,
-  Timelines
+  Suggestions,
+  Timelines,
+  Trends
 }
 import ca.schwitzer.scaladon.http.{BearerToken, Host, HttpBackend}
 
@@ -30,7 +48,25 @@ final case class Mastodon[F[_]](
     timelines: Timelines[F],
     collections: Collections[F],
     notifications: Notifications[F],
-    oauth: OAuth[F]
+    oauth: OAuth[F],
+    media: Media[F],
+    scheduledStatuses: ScheduledStatuses[F],
+    asyncRefreshes: AsyncRefreshes[F],
+    polls: Polls[F],
+    search: Search[F],
+    favourites: Favourites[F],
+    blocks: Blocks[F],
+    mutes: Mutes[F],
+    follows: Follows[F],
+    followRequests: FollowRequests[F],
+    reports: Reports[F],
+    lists: Lists[F],
+    filters: Filters[F],
+    markers: Markers[F],
+    announcements: Announcements[F],
+    trends: Trends[F],
+    suggestions: Suggestions[F],
+    push: Push[F]
 ):
 
   /** Translate the client to another effect without changing what it does. */
@@ -43,7 +79,25 @@ final case class Mastodon[F[_]](
       timelines.mapK(transform),
       collections.mapK(transform),
       notifications.mapK(transform),
-      oauth.mapK(transform)
+      oauth.mapK(transform),
+      media.mapK(transform),
+      scheduledStatuses.mapK(transform),
+      asyncRefreshes.mapK(transform),
+      polls.mapK(transform),
+      search.mapK(transform),
+      favourites.mapK(transform),
+      blocks.mapK(transform),
+      mutes.mapK(transform),
+      follows.mapK(transform),
+      followRequests.mapK(transform),
+      reports.mapK(transform),
+      lists.mapK(transform),
+      filters.mapK(transform),
+      markers.mapK(transform),
+      announcements.mapK(transform),
+      trends.mapK(transform),
+      suggestions.mapK(transform),
+      push.mapK(transform)
     )
 
 object Mastodon:
@@ -68,5 +122,23 @@ object Mastodon:
       Timelines.live(runner),
       Collections.live(runner),
       Notifications.live(runner),
-      OAuth.live(runner)
+      OAuth.live(runner),
+      Media.live(runner),
+      ScheduledStatuses.live(runner),
+      AsyncRefreshes.live(runner),
+      Polls.live(runner),
+      Search.live(runner),
+      Favourites.live(runner),
+      Blocks.live(runner),
+      Mutes.live(runner),
+      Follows.live(runner),
+      FollowRequests.live(runner),
+      Reports.live(runner),
+      Lists.live(runner),
+      Filters.live(runner),
+      Markers.live(runner),
+      Announcements.live(runner),
+      Trends.live(runner),
+      Suggestions.live(runner),
+      Push.live(runner)
     )
