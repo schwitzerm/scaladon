@@ -27,11 +27,15 @@ import ca.schwitzer.scaladon.domain.{
   Instance,
   InstanceConfiguration,
   InstanceUrls,
+  MediaAttachment,
   MediaConfiguration,
+  MediaType,
   Notification,
   NotificationFallback,
   OAuthServerMetadata,
   OAuthToken,
+  Poll,
+  PollOption,
   PollsConfiguration,
   PreviewCard,
   PreviewCardType,
@@ -50,6 +54,8 @@ import ca.schwitzer.scaladon.domain.{
   Status,
   StatusPostResult,
   StatusesConfiguration,
+  Tag,
+  TagHistory,
   TimelineAccess,
   TimelinesAccess,
   TranslationConfiguration,
@@ -876,3 +882,64 @@ object Codecs:
     "profile",
     "picture"
   )(UserInfo.apply)
+
+  // --- shared entities codecs ---
+
+  /** Tag history counts are integers in the docs but numeric strings on real payloads. */
+  private val intLike: Decoder[Int] = Decoder.decodeJson.emap { json =>
+    json.asNumber
+      .flatMap(_.toInt)
+      .orElse(json.asString.flatMap(_.toIntOption))
+      .toRight("expected an integer or a numeric string")
+  }
+
+  given Decoder[TagHistory] = Decoder.instance { cursor =>
+    for
+      day      <- cursor.get[String]("day")
+      uses     <- cursor.get[Int]("uses")(using intLike)
+      accounts <- cursor.get[Int]("accounts")(using intLike)
+    yield TagHistory(day, uses, accounts)
+  }
+
+  given Decoder[Tag] = Decoder.instance { cursor =>
+    for
+      name      <- cursor.get[String]("name")
+      url       <- cursor.get[String]("url")
+      history   <- cursor.get[Option[List[TagHistory]]]("history").map(_.getOrElse(Nil))
+      following <- cursor.get[Option[Boolean]]("following")
+    yield Tag(name, url, history, following)
+  }
+
+  given Decoder[MediaType] = Decoder.decodeString.emap(value =>
+    MediaType.fromWire(value).toRight(s"Unknown media type '$value'")
+  )
+
+  given Decoder[MediaAttachment] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[Id]("id")
+      kind        <- cursor.get[MediaType]("type")
+      url         <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      previewUrl  <- cursor.get[Option[String]]("preview_url").map(_.filter(_.nonEmpty))
+      remoteUrl   <- cursor.get[Option[String]]("remote_url").map(_.filter(_.nonEmpty))
+      textUrl     <- cursor.get[Option[String]]("text_url").map(_.filter(_.nonEmpty))
+      description <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
+      blurhash    <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
+    yield MediaAttachment(id, kind, url, previewUrl, remoteUrl, textUrl, description, blurhash)
+  }
+
+  given Decoder[PollOption] =
+    Decoder.forProduct2("title", "votes_count")(PollOption.apply)
+
+  given Decoder[Poll] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[Id]("id")
+      expiresAt   <- cursor.get[Option[Instant]]("expires_at")
+      expired     <- cursor.get[Boolean]("expired")
+      multiple    <- cursor.get[Boolean]("multiple")
+      votesCount  <- cursor.get[Int]("votes_count")
+      votersCount <- cursor.get[Option[Int]]("voters_count")
+      voted       <- cursor.get[Option[Boolean]]("voted")
+      ownVotes    <- cursor.get[Option[List[Int]]]("own_votes")
+      options     <- cursor.get[List[PollOption]]("options")
+    yield Poll(id, expiresAt, expired, multiple, votesCount, votersCount, voted, ownVotes, options)
+  }
