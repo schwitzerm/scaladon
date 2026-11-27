@@ -30,12 +30,15 @@ final case class ScheduledStatusParams(
     quoteApprovalPolicy: Option[QuoteApprovalPolicy]
 )
 
-/** `ScheduledStatus`: what `POST /api/v1/statuses` returns when `scheduled_at` is supplied.
+/** `ScheduledStatus`: what `POST /api/v1/statuses` returns when `scheduled_at` is supplied, and
+  * what `/api/v1/scheduled_statuses` manages.
   *
-  * `mediaAttachments` is not modelled yet; the media entity is outside this stream's surface.
+  * `mediaAttachments` is the documented `media_attachments` array; a payload without it normalises
+  * to `Nil`, and the default keeps positional construction source-compatible.
   */
 final case class ScheduledStatus(
     id: Id,
     scheduledAt: Instant,
-    params: ScheduledStatusParams
+    params: ScheduledStatusParams,
+    mediaAttachments: List[MediaAttachment] = Nil
 )
