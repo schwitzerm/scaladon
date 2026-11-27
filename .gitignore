@@ -76,3 +76,5 @@ project/plugins/project/
 .scala-build/
 metals.sbt
 project/project/
+
+.omo
