@@ -1237,6 +1237,8 @@ object Codecs:
       blurhash = blurhash,
       history = history
     )
+  }
+
   // --- suggestions and push codecs ---
 
   given Decoder[SuggestionSource] = Decoder.decodeString.emap(value =>
