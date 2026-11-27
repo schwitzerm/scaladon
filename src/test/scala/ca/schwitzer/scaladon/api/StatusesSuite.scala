@@ -3,11 +3,22 @@ package ca.schwitzer.scaladon.api
 import cats.effect.{IO, Ref}
 import munit.CatsEffectSuite
 
+import java.time.Instant
 import java.util.concurrent.CancellationException
 import scala.concurrent.duration.*
 
 import ca.schwitzer.scaladon.Mastodon
-import ca.schwitzer.scaladon.domain.{ApiError, ApiException, HttpStatus, Id, Status, Visibility}
+import ca.schwitzer.scaladon.domain.{
+  ApiError,
+  ApiException,
+  AsyncRefresh,
+  HttpStatus,
+  Id,
+  QuoteApprovalPolicy,
+  Status,
+  StatusPostResult,
+  Visibility
+}
 import ca.schwitzer.scaladon.http.{BearerToken, Host, HttpBackend, HttpMethod, Request, Response}
 
 class StatusesSuite extends CatsEffectSuite:
@@ -46,6 +57,69 @@ class StatusesSuite extends CatsEffectSuite:
       |  "reblogged": false
       |}""".stripMargin
 
+  private val accountsJson: String =
+    """[
+      |  {
+      |    "id": "7",
+      |    "username": "alice",
+      |    "acct": "alice",
+      |    "display_name": "Alice",
+      |    "note": "",
+      |    "url": "https://code.party/@alice",
+      |    "avatar": "https://code.party/a.png",
+      |    "header": "https://code.party/h.png",
+      |    "locked": false,
+      |    "created_at": "2017-04-05T12:00:00.000Z"
+      |  }
+      |]""".stripMargin
+
+  private val contextJson: String =
+    s"""{"ancestors": [$statusJson], "descendants": [$statusJson]}"""
+
+  private val scheduledJson: String =
+    """{
+      |  "id": "3221",
+      |  "scheduled_at": "2019-12-05T12:33:01.000Z",
+      |  "params": {
+      |    "text": "test content",
+      |    "media_ids": null,
+      |    "sensitive": null,
+      |    "spoiler_text": null,
+      |    "visibility": null,
+      |    "language": null,
+      |    "scheduled_at": null,
+      |    "poll": null,
+      |    "idempotency": null,
+      |    "in_reply_to_id": null,
+      |    "application_id": 596551,
+      |    "quoted_status_id": "42",
+      |    "quote_approval_policy": "followers"
+      |  },
+      |  "media_attachments": []
+      |}""".stripMargin
+
+  private val cardJson: String =
+    """{
+      |  "url": "https://example.com/a",
+      |  "title": "An article",
+      |  "description": "About things",
+      |  "type": "link",
+      |  "author_name": "",
+      |  "author_url": "",
+      |  "provider_name": "Example",
+      |  "provider_url": "https://example.com",
+      |  "html": "",
+      |  "width": 400,
+      |  "height": 200,
+      |  "image": null,
+      |  "embed_url": "",
+      |  "blurhash": null,
+      |  "missing_attribution": false
+      |}""".stripMargin
+
+  private val statusWithCardJson: String =
+    statusJson.replace("\"reblog\": null,", s"\"reblog\": null,\n  \"card\": $cardJson,")
+
   private def recordingBackend(response: Response): IO[(Ref[IO, List[Request]], HttpBackend[IO])] =
     Ref.of[IO, List[Request]](Nil).map { ref =>
       ref -> HttpBackend.of[IO](request => ref.update(_ :+ request).as(response))
@@ -53,6 +127,11 @@ class StatusesSuite extends CatsEffectSuite:
 
   private def client(response: Response): IO[(Ref[IO, List[Request]], Mastodon[IO])] =
     recordingBackend(response).map { case (ref, http) => ref -> Mastodon.live(http, host, token) }
+
+  private def statuses(response: Response): IO[(Ref[IO, List[Request]], Statuses[IO])] =
+    recordingBackend(response).map { case (ref, http) =>
+      ref -> Statuses.live[IO](EndpointRunner(http, host, Some(token)))
+    }
 
   private def apiError[A](result: Either[Throwable, A]): ApiError =
     result match
@@ -232,4 +311,222 @@ class StatusesSuite extends CatsEffectSuite:
       translated = mastodon.mapK(identity)
       result <- translated.statuses.fetch(Id("42")).attempt
     yield assertEquals(result.map(_.id.value), Right("42"))
+  }
+
+  test("mapK identity on the Statuses algebra preserves requests") {
+    val identity = new cats.~>[IO, IO]:
+      def apply[A](fa: IO[A]): IO[A] = fa
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, statusJson))
+      (ref, statuses) = pair
+      result   <- statuses.mapK(identity).fetch(Id("42"))
+      requests <- ref.get
+    yield
+      assertEquals(result.id.value, "42")
+      assertEquals(requests.head.url, "https://code.party/api/v1/statuses/42")
+  }
+
+  test("post sends the 5.0 authoring fields when present") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, statusJson))
+      (ref, statuses) = pair
+      _        <- statuses.post(
+                    "hello",
+                    Visibility.Public,
+                    sensitive = Some(true),
+                    language = Some("en"),
+                    mediaIds = Some(List(Id("1"), Id("2"))),
+                    quotedStatusId = Some(Id("42")),
+                    quoteApprovalPolicy = Some(QuoteApprovalPolicy.Followers),
+                    scheduledAt = Some(Instant.parse("2030-01-01T00:00:00Z"))
+                  )
+      requests <- ref.get
+    yield
+      val body = requests.head.body.flatMap(_.asObject).get
+      assertEquals(body("sensitive").flatMap(_.asBoolean), Some(true))
+      assertEquals(body("language").flatMap(_.asString), Some("en"))
+      assertEquals(
+        body("media_ids").flatMap(_.asArray).map(_.flatMap(_.asString)),
+        Some(Vector("1", "2"))
+      )
+      assertEquals(body("quoted_status_id").flatMap(_.asString), Some("42"))
+      assertEquals(body("quote_approval_policy").flatMap(_.asString), Some("followers"))
+      assertEquals(body("scheduled_at").flatMap(_.asString), Some("2030-01-01T00:00:00Z"))
+  }
+
+  test("post omits every absent 5.0 option, never null") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, statusJson))
+      (ref, statuses) = pair
+      _        <- statuses.post("hello")
+      requests <- ref.get
+    yield
+      val body = requests.head.body.flatMap(_.asObject).get
+      assertEquals(body("status").flatMap(_.asString), Some("hello"))
+      assertEquals(body("visibility").flatMap(_.asString), Some("public"))
+      List(
+        "in_reply_to_id",
+        "spoiler_text",
+        "sensitive",
+        "language",
+        "media_ids",
+        "quoted_status_id",
+        "quote_approval_policy",
+        "scheduled_at"
+      ).foreach(key => assert(!body.contains(key), s"$key must be omitted"))
+  }
+
+  test("post decodes a status response as Posted") {
+    for
+      pair   <- statuses(Response(HttpStatus.Ok, statusJson))
+      result <- pair._2.post("hello")
+    yield result match
+      case StatusPostResult.Posted(status) => assertEquals(status.id.value, "42")
+      case other                           => fail(s"expected Posted, got $other")
+  }
+
+  test("post decodes a scheduled response as Scheduled") {
+    for
+      pair   <- statuses(Response(HttpStatus.Ok, scheduledJson))
+      result <- pair._2.post("later", scheduledAt = Some(Instant.parse("2019-12-05T12:33:01Z")))
+    yield result match
+      case StatusPostResult.Scheduled(value) =>
+        assertEquals(value.id.value, "3221")
+        assertEquals(value.scheduledAt, Instant.parse("2019-12-05T12:33:01Z"))
+        assertEquals(value.params.text, "test content")
+        assertEquals(value.params.quotedStatusId, Some(Id("42")))
+        assertEquals(value.params.quoteApprovalPolicy, Some(QuoteApprovalPolicy.Followers))
+      case other => fail(s"expected Scheduled, got $other")
+  }
+
+  test("edit uses PUT and sends only the provided fields") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, statusJson))
+      (ref, statuses) = pair
+      _        <- statuses.edit(
+                    Id("42"),
+                    text = Some("edited"),
+                    spoilerText = Some("cw"),
+                    quoteApprovalPolicy = Some(QuoteApprovalPolicy.Public)
+                  )
+      requests <- ref.get
+    yield
+      val request = requests.head
+      assertEquals(request.method, HttpMethod.PUT)
+      assertEquals(request.url, "https://code.party/api/v1/statuses/42")
+      val body = request.body.flatMap(_.asObject).get
+      assertEquals(body("status").flatMap(_.asString), Some("edited"))
+      assertEquals(body("spoiler_text").flatMap(_.asString), Some("cw"))
+      assertEquals(body("quote_approval_policy").flatMap(_.asString), Some("public"))
+      assert(!body.contains("sensitive"), "absent sensitive must be omitted")
+      assert(!body.contains("media_ids"), "absent media_ids must be omitted")
+  }
+
+  test("context returns the tree and the Mastodon-Async-Refresh token") {
+    val response = Response(
+      HttpStatus.Ok,
+      contextJson,
+      Map("Mastodon-Async-Refresh" -> """id="abc123", retry=5, result_count=2""")
+    )
+    for
+      pair     <- statuses(response)
+      (ref, statuses) = pair
+      result   <- statuses.context(Id("42"))
+      requests <- ref.get
+    yield
+      val (context, refresh) = result
+      assertEquals(context.ancestors.map(_.id.value), List("42"))
+      assertEquals(context.descendants.map(_.id.value), List("42"))
+      assertEquals(refresh, Some(AsyncRefresh("abc123", 5, Some(2))))
+      val request = requests.head
+      assertEquals(request.method, HttpMethod.GET)
+      assertEquals(request.url, "https://code.party/api/v1/statuses/42/context")
+      assert(!request.headers.contains("Authorization"), "context is public for public statuses")
+  }
+
+  test("context without the async header returns None") {
+    for
+      pair   <- statuses(Response(HttpStatus.Ok, contextJson))
+      result <- pair._2.context(Id("42"))
+    yield assertEquals(result._2, None)
+  }
+
+  test("favouritedBy targets the accounts path with the limit query") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, accountsJson))
+      (ref, statuses) = pair
+      accounts <- statuses.favouritedBy(Id("42"), limit = Some(5))
+      requests <- ref.get
+    yield
+      assertEquals(accounts.map(_.id.value), List("7"))
+      val request = requests.head
+      assertEquals(request.method, HttpMethod.GET)
+      assertEquals(request.url, "https://code.party/api/v1/statuses/42/favourited_by?limit=5")
+      assert(!request.headers.contains("Authorization"), "public endpoint must not carry a token")
+  }
+
+  test("rebloggedBy omits the query when no limit is given") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, accountsJson))
+      (ref, statuses) = pair
+      accounts <- statuses.rebloggedBy(Id("42"))
+      requests <- ref.get
+    yield
+      assertEquals(accounts.map(_.displayName), List("Alice"))
+      assertEquals(requests.head.url, "https://code.party/api/v1/statuses/42/reblogged_by")
+  }
+
+  test("favourite, unfavourite, reblog and unreblog hit their POST paths") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, statusJson))
+      (ref, statuses) = pair
+      _        <- statuses.favourite(Id("42"))
+      _        <- statuses.unfavourite(Id("42"))
+      _        <- statuses.reblog(Id("42"), Some(Visibility.Private))
+      _        <- statuses.unreblog(Id("42"))
+      requests <- ref.get
+    yield
+      assertEquals(
+        requests.map(request => request.method -> request.url),
+        List(
+          HttpMethod.POST -> "https://code.party/api/v1/statuses/42/favourite",
+          HttpMethod.POST -> "https://code.party/api/v1/statuses/42/unfavourite",
+          HttpMethod.POST -> "https://code.party/api/v1/statuses/42/reblog",
+          HttpMethod.POST -> "https://code.party/api/v1/statuses/42/unreblog"
+        )
+      )
+      assert(requests.forall(_.headers.get("Authorization").contains("Bearer secret")))
+      assertEquals(requests(2).form, Some(List("visibility" -> "private")))
+      assertEquals(requests(0).form, Some(Nil))
+  }
+
+  test("card reads the preview card off the fetched status") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, statusWithCardJson))
+      (ref, statuses) = pair
+      card     <- statuses.card(Id("42"))
+      requests <- ref.get
+    yield
+      assertEquals(card.map(_.title), Some("An article"))
+      assertEquals(card.map(_.cardType.wire), Some("link"))
+      assertEquals(requests.head.url, "https://code.party/api/v1/statuses/42")
+  }
+
+  test("an anonymous client cannot favourite and never touches the network") {
+    for
+      calls <- Ref.of[IO, Int](0)
+      http = HttpBackend.of[IO](_ => calls.update(_ + 1).as(Response(HttpStatus.Ok, statusJson)))
+      anonymous = EndpointRunner.anonymous(http, host)
+      result <- Statuses.live[IO](anonymous).favourite(Id("42")).attempt
+      sent   <- calls.get
+    yield
+      assertEquals(apiError(result), ApiError.NotAuthenticated("/api/v1/statuses/42/favourite"))
+      assertEquals(sent, 0)
+  }
+
+  test("a malformed context body becomes a Decode error") {
+    for
+      pair   <- statuses(Response(HttpStatus.Ok, """{"ancestors":"nope"}"""))
+      result <- pair._2.context(Id("42")).attempt
+    yield assert(apiError(result).isInstanceOf[ApiError.Decode], s"got $result")
   }
