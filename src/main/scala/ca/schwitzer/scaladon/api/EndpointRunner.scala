@@ -55,7 +55,13 @@ final case class EndpointRunner[F[_]: MonadThrow](
 
   private def build[A](endpoint: Endpoint[A]): Request =
     val url = s"${host.baseUrl}${endpoint.path}${queryString(endpoint.query)}"
-    val base = Request(endpoint.method, url, body = endpoint.body, form = endpoint.form)
+    val base = Request(
+      endpoint.method,
+      url,
+      body = endpoint.body,
+      form = endpoint.form,
+      multipart = endpoint.multipart
+    )
     if endpoint.authenticated then
       token.fold(base)(t => base.withHeader("Authorization", s"Bearer ${t.value}"))
     else base

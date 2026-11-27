@@ -3,7 +3,7 @@ package ca.schwitzer.scaladon.api
 import io.circe.{Decoder, Json}
 
 import ca.schwitzer.scaladon.domain.ApiError
-import ca.schwitzer.scaladon.http.HttpMethod
+import ca.schwitzer.scaladon.http.{HttpMethod, Multipart, MultipartPart}
 
 /** An API call described as data: method, path, query, body, whether it needs a token, and how to
   * decode the result. Nothing here performs effects, so endpoints can be inspected, printed,
@@ -19,7 +19,8 @@ final case class Endpoint[A](
     body: Option[Json],
     authenticated: Boolean,
     decode: Json => Either[ApiError, A],
-    form: Option[List[(String, String)]] = None
+    form: Option[List[(String, String)]] = None,
+    multipart: Option[Multipart] = None
 ):
   def withQuery(params: (String, String)*): Endpoint[A] =
     copy(query = query ++ params)
@@ -97,6 +98,23 @@ object Endpoint:
       authenticated: Boolean = true
   ): Endpoint[Unit] =
     Endpoint(method, path, Nil, None, authenticated, _ => Right(()), form = Some(fields))
+
+  /** A request with a `multipart/form-data` body, e.g. media uploads and thumbnail updates. */
+  def multipart[A: Decoder](
+      method: HttpMethod,
+      path: String,
+      parts: List[MultipartPart],
+      authenticated: Boolean = true
+  ): Endpoint[A] =
+    Endpoint(
+      method,
+      path,
+      Nil,
+      None,
+      authenticated,
+      decodeWith[A],
+      multipart = Some(Multipart(parts))
+    )
 
   private def decodeWith[A](using decoder: Decoder[A]): Json => Either[ApiError, A] =
     json => decoder.decodeJson(json).left.map(failure => ApiError.Decode(failure.message))
