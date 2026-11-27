@@ -23,10 +23,17 @@ import ca.schwitzer.scaladon.domain.{
   Context,
   CredentialAccount,
   FeedAccess,
+  Filter,
+  FilterAction,
+  FilterContext,
+  FilterKeyword,
+  FilterStatus,
   Id,
   Instance,
   InstanceConfiguration,
   InstanceUrls,
+  Marker,
+  MarkerTimeline,
   MediaAttachment,
   MediaConfiguration,
   MediaType,
@@ -943,3 +950,52 @@ object Codecs:
       options     <- cursor.get[List[PollOption]]("options")
     yield Poll(id, expiresAt, expired, multiple, votesCount, votersCount, voted, ownVotes, options)
   }
+
+  // --- filters-markers codecs ---
+
+  given Decoder[FilterContext] = Decoder.decodeString.emap(value =>
+    FilterContext.fromWire(value).toRight(s"Unknown filter context '$value'")
+  )
+
+  given Decoder[FilterAction] = Decoder.decodeString.emap(value =>
+    FilterAction.fromWire(value).toRight(s"Unknown filter action '$value'")
+  )
+
+  given Decoder[FilterKeyword] =
+    Decoder.forProduct3("id", "keyword", "whole_word")(FilterKeyword.apply)
+
+  given Decoder[FilterStatus] =
+    Decoder.forProduct2("id", "status_id")(FilterStatus.apply)
+
+  given Decoder[Filter] = Decoder.instance { cursor =>
+    for
+      id         <- cursor.get[Id]("id")
+      title      <- cursor.get[String]("title")
+      context    <- cursor.get[List[FilterContext]]("context")
+      expiresAt  <- cursor.get[Option[Instant]]("expires_at")
+      action     <- cursor.get[FilterAction]("filter_action")
+      keywords   <- cursor.get[Option[List[FilterKeyword]]]("keywords").map(_.getOrElse(Nil))
+      statuses   <- cursor.get[Option[List[FilterStatus]]]("statuses").map(_.getOrElse(Nil))
+    yield Filter(id, title, context, expiresAt, action, keywords, statuses)
+  }
+
+  given Decoder[MarkerTimeline] = Decoder.decodeString.emap(value =>
+    MarkerTimeline.fromWire(value).toRight(s"Unknown marker timeline '$value'")
+  )
+
+  given Decoder[Marker] =
+    Decoder.forProduct3("last_read_id", "version", "updated_at")(Marker.apply)
+
+  /** The markers payload is a hash keyed by timeline; keys are validated so a new timeline this
+    * version does not know fails loudly instead of being silently dropped (legacy #9).
+    */
+  given Decoder[Map[MarkerTimeline, Marker]] =
+    Decoder.decodeMap[String, Marker].emap { entries =>
+      entries.toList.foldLeft[Either[String, Map[MarkerTimeline, Marker]]](Right(Map.empty)) {
+        case (soFar, (key, marker)) =>
+          for
+            markers  <- soFar
+            timeline <- MarkerTimeline.fromWire(key).toRight(s"Unknown marker timeline '$key'")
+          yield markers.updated(timeline, marker)
+      }
+    }
