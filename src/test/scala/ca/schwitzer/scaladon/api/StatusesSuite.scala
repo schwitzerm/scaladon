@@ -120,6 +120,53 @@ class StatusesSuite extends CatsEffectSuite:
   private val statusWithCardJson: String =
     statusJson.replace("\"reblog\": null,", s"\"reblog\": null,\n  \"card\": $cardJson,")
 
+  /** The `DELETE /api/v1/statuses/:id` answer: the deleted status plus its source `text` and poll
+    * (2.9.0 delete-and-redraft). `poll` is not modelled yet, so decoding must ignore it.
+    */
+  private val redraftJson: String =
+    """{
+      |  "id": "42",
+      |  "uri": "tag:code.party,2017-04-05:objectId=1",
+      |  "url": "https://code.party/@alice/42",
+      |  "account": {
+      |    "id": "7",
+      |    "username": "alice",
+      |    "acct": "alice",
+      |    "display_name": "Alice",
+      |    "note": "",
+      |    "url": "https://code.party/@alice",
+      |    "avatar": "https://code.party/a.png",
+      |    "header": "https://code.party/h.png",
+      |    "locked": false,
+      |    "created_at": "2017-04-05T12:00:00.000Z"
+      |  },
+      |  "content": "<p>Hello</p>",
+      |  "created_at": "2017-04-05T12:00:00.000Z",
+      |  "visibility": "public",
+      |  "in_reply_to_id": null,
+      |  "in_reply_to_account_id": null,
+      |  "spoiler_text": "",
+      |  "sensitive": false,
+      |  "reblog": null,
+      |  "reblogs_count": 0,
+      |  "favourites_count": 0,
+      |  "favourited": false,
+      |  "reblogged": false,
+      |  "text": "hello world",
+      |  "poll": {
+      |    "id": "9",
+      |    "expires_at": "2019-12-06T08:26:45.945Z",
+      |    "expired": false,
+      |    "multiple": false,
+      |    "votes_count": 1,
+      |    "voters_count": 1,
+      |    "voted": true,
+      |    "own_votes": [],
+      |    "options": [{"title": "test 1", "votes_count": 1}],
+      |    "emojis": []
+      |  }
+      |}""".stripMargin
+
   private def recordingBackend(response: Response): IO[(Ref[IO, List[Request]], HttpBackend[IO])] =
     Ref.of[IO, List[Request]](Nil).map { ref =>
       ref -> HttpBackend.of[IO](request => ref.update(_ :+ request).as(response))
@@ -420,6 +467,23 @@ class StatusesSuite extends CatsEffectSuite:
       assertEquals(body("quote_approval_policy").flatMap(_.asString), Some("public"))
       assert(!body.contains("sensitive"), "absent sensitive must be omitted")
       assert(!body.contains("media_ids"), "absent media_ids must be omitted")
+  }
+
+  test("delete returns the redraft status and sends no body") {
+    for
+      pair     <- statuses(Response(HttpStatus.Ok, redraftJson))
+      (ref, statuses) = pair
+      deleted  <- statuses.delete(Id("42"))
+      requests <- ref.get
+    yield
+      assertEquals(deleted.id.value, "42")
+      assertEquals(deleted.text, Some("hello world"))
+      assertEquals(deleted.content, "<p>Hello</p>")
+      val request = requests.head
+      assertEquals(request.method, HttpMethod.DELETE)
+      assertEquals(request.url, "https://code.party/api/v1/statuses/42")
+      assertEquals(request.headers.get("Authorization"), Some("Bearer secret"))
+      assertEquals(request.body, None)
   }
 
   test("context returns the tree and the Mastodon-Async-Refresh token") {
