@@ -15,6 +15,8 @@ import ca.schwitzer.scaladon.domain.{
   AccountStateError,
   AccountsConfiguration,
   ApiVersions,
+  AsyncRefreshState,
+  AsyncRefreshStatus,
   Collection,
   CollectionItem,
   CollectionItemState,
@@ -942,4 +944,18 @@ object Codecs:
       ownVotes    <- cursor.get[Option[List[Int]]]("own_votes")
       options     <- cursor.get[List[PollOption]]("options")
     yield Poll(id, expiresAt, expired, multiple, votesCount, votersCount, voted, ownVotes, options)
+  }
+
+  // --- async-refresh codecs ---
+
+  given Decoder[AsyncRefreshState] = Decoder.decodeString.emap(value =>
+    AsyncRefreshState.fromWire(value).toRight(s"Unknown async refresh state '$value'")
+  )
+
+  given Decoder[AsyncRefreshStatus] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[String]("id")
+      status      <- cursor.get[AsyncRefreshState]("status")
+      resultCount <- cursor.get[Option[Int]]("result_count")
+    yield AsyncRefreshStatus(id, status, resultCount)
   }
