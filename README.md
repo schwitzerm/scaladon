@@ -15,7 +15,6 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 |---|---|
 | Version | `0.4.0-SNAPSHOT` (unreleased) |
 | API | Mastodon 5.0 / API version 12 (latest only) |
-| Branch | `dev/modern-mastodon-api` |
 | Language | Scala 3.10.1 |
 | Build | sbt 1.13.1 |
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
