@@ -1,6 +1,7 @@
 package ca.schwitzer.scaladon.api
 
 import cats.{MonadThrow, ~>}
+import io.circe.Json
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -71,7 +72,11 @@ final case class EndpointRunner[F[_]: MonadThrow](
   private def encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 
   private def interpret[A](endpoint: Endpoint[A], response: Response): Either[ApiError, A] =
-    if response.status.isSuccess then response.json.flatMap(endpoint.decode)
+    if response.status.isSuccess then
+      // A successful response may carry no body at all (204, or an empty 200 for actions).
+      // Treat it as `{}` so unit endpoints succeed; a typed decoder still fails with `Decode`.
+      val json = if response.body.trim.isEmpty then Right(Json.obj()) else response.json
+      json.flatMap(endpoint.decode)
     else Left(httpError(response))
 
   private def httpError(response: Response): ApiError =
