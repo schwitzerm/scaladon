@@ -13,6 +13,7 @@ import java.time.Instant
   * user token, and default to `false` when the server omits them. `editedAt` is `Some` once a
   * status has been edited (Mastodon 3.5+). `card`, `language`, `text` and `quote` cover the
   * 4.4-5.0 surface; `repliesCount`/`quotesCount` default to `0` for servers that predate them.
+  * `poll` is the poll attached to the status, absent when the status has none.
   */
 final case class Status(
     id: Id,
@@ -40,5 +41,6 @@ final case class Status(
     language: Option[String],
     text: Option[String],
     card: Option[PreviewCard],
-    quote: Option[Quote]
+    quote: Option[Quote],
+    poll: Option[Poll]
 )

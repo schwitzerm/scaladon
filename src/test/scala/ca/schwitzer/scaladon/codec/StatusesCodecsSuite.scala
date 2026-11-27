@@ -239,3 +239,49 @@ class StatusesCodecsSuite extends FunSuite:
       case Right(StatusPostResult.Posted(status)) => assertEquals(status.id.value, "115107232286434584")
       case other                                  => fail(s"expected Posted, got $other")
   }
+
+  private def statusWithPoll(pollJson: String): String =
+    s"""{
+       |  "id": "115107232286434584",
+       |  "uri": "https://code.party/users/alice/statuses/115",
+       |  "url": "https://code.party/@alice/115",
+       |  "account": $accountJson,
+       |  "content": "<p>which one?</p>",
+       |  "created_at": "2025-08-28T16:02:57.029Z",
+       |  "visibility": "public",
+       |  "spoiler_text": "",
+       |  "reblogs_count": 0,
+       |  "favourites_count": 0,
+       |  "poll": $pollJson
+       |}""".stripMargin
+
+  test("a status decodes its attached poll") {
+    val pollJson =
+      """{
+        |  "id": "34830",
+        |  "expires_at": "2026-11-30T12:00:00.000Z",
+        |  "expired": false,
+        |  "multiple": true,
+        |  "votes_count": 10,
+        |  "voters_count": 7,
+        |  "voted": true,
+        |  "own_votes": [0, 2],
+        |  "options": [
+        |    { "title": "Cats", "votes_count": 6 },
+        |    { "title": "Dogs", "votes_count": 4 }
+        |  ],
+        |  "emojis": []
+        |}""".stripMargin
+    val status = decode[Status](statusWithPoll(pollJson)).toOption.get
+    val poll = status.poll.getOrElse(fail("expected an attached poll"))
+    assertEquals(poll.id.value, "34830")
+    assertEquals(poll.expiresAt, Some(Instant.parse("2026-11-30T12:00:00.000Z")))
+    assertEquals(poll.multiple, true)
+    assertEquals(poll.ownVotes, Some(List(0, 2)))
+    assertEquals(poll.options.map(_.title), List("Cats", "Dogs"))
+  }
+
+  test("a status with a null poll decodes it as absent") {
+    val status = decode[Status](statusWithPoll("null")).toOption.get
+    assertEquals(status.poll, None)
+  }
