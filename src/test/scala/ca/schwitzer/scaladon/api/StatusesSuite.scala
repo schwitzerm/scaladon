@@ -530,3 +530,30 @@ class StatusesSuite extends CatsEffectSuite:
       result <- pair._2.context(Id("42")).attempt
     yield assert(apiError(result).isInstanceOf[ApiError.Decode], s"got $result")
   }
+
+  test("parseAsyncRefresh reads id, retry and result_count") {
+    assertEquals(
+      Statuses.parseAsyncRefresh("""id="abc", retry=5, result_count=3"""),
+      Some(AsyncRefresh("abc", 5, Some(3)))
+    )
+  }
+
+  test("parseAsyncRefresh accepts an omitted result_count") {
+    assertEquals(
+      Statuses.parseAsyncRefresh("""id="abc", retry=5"""),
+      Some(AsyncRefresh("abc", 5, None))
+    )
+  }
+
+  test("parseAsyncRefresh rejects a missing id or retry") {
+    assertEquals(Statuses.parseAsyncRefresh("""retry=5"""), None)
+    assertEquals(Statuses.parseAsyncRefresh("""id="abc"""), None)
+    assertEquals(Statuses.parseAsyncRefresh("""id="abc", retry=soon"""), None)
+  }
+
+  test("parseAsyncRefresh tolerates surrounding whitespace and an unquoted id") {
+    assertEquals(
+      Statuses.parseAsyncRefresh("  id=abc ,  retry= 7 , result_count= 1 "),
+      Some(AsyncRefresh("abc", 7, Some(1)))
+    )
+  }

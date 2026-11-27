@@ -20,7 +20,7 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
 | HTTP | http4s 0.23.39 (ember client) |
 | JSON | circe 0.14.17 |
-| Tests | 143, `sbt test` |
+| Tests | 192, `sbt test` |
 | JDK | built and tested on JDK 27 |
 
 The 0.3.2 library is **frozen in [`legacy/`](legacy/README.md)** and is not compiled by the build. Read it for endpoint paths, field names and the list of bugs the rewrite must not reproduce.
@@ -185,7 +185,7 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 │   ├── api/                        # Endpoint, Runner, Instances, Statuses, Accounts, Profile, Timelines, Collections, Notifications, OAuth, attemptApi
 │   ├── http4s/                     # ember interpreter + MastodonHttp4s.resource
 │   └── translation/                # Future <-> IO
-├── src/test/scala/ca/schwitzer/scaladon/   # 14 suites, 143 tests
+├── src/test/scala/ca/schwitzer/scaladon/   # 20 suites, 192 tests
 └── legacy/                         # frozen 0.3.2: sources, publishing config, CI, defect ledger
 ```
 

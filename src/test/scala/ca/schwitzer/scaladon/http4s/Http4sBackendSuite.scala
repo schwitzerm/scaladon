@@ -128,6 +128,58 @@ class Http4sBackendSuite extends CatsEffectSuite:
         case other => fail(s"expected ApiException(RateLimited), got $other")
   }
 
+  test("a form body is sent as application/x-www-form-urlencoded") {
+    for
+      pair     <- recordingBackend(Status.Ok, "{}")
+      (ref, http) = pair
+      _ <- http.run(
+             Request(
+               HttpMethod.POST,
+               "https://code.party/oauth/token",
+               form = Some(List("grant_type" -> "authorization_code", "scope" -> "read write"))
+             )
+           )
+      seen <- ref.get
+    yield
+      val request = seen.head.request
+      assertEquals(
+        request.contentType.map(_.mediaType),
+        Some(MediaType.application.`x-www-form-urlencoded`)
+      )
+      assert(seen.head.body.contains("grant_type=authorization_code"), seen.head.body)
+      assert(seen.head.body.contains("scope=read"), seen.head.body)
+  }
+
+  test("PUT, PATCH and DELETE map to their http4s methods") {
+    def methodOf(method: HttpMethod): IO[org.http4s.Method] =
+      for
+        pair     <- recordingBackend(Status.Ok, "{}")
+        (ref, http) = pair
+        _        <- http.run(Request(method, "https://code.party/x"))
+        seen     <- ref.get
+      yield seen.head.request.method
+
+    for
+      put    <- methodOf(HttpMethod.PUT)
+      patch  <- methodOf(HttpMethod.PATCH)
+      delete <- methodOf(HttpMethod.DELETE)
+    yield
+      assertEquals(put, org.http4s.Method.PUT)
+      assertEquals(patch, org.http4s.Method.PATCH)
+      assertEquals(delete, org.http4s.Method.DELETE)
+  }
+
+  test("response headers are stored lower-cased and stay case-insensitive") {
+    for
+      pair     <- recordingBackend(Status.Ok, "{}", List("X-RateLimit-Remaining" -> "7"))
+      (_, http) = pair
+      response <- http.run(Request(HttpMethod.GET, "https://code.party/x"))
+    yield
+      assertEquals(response.header("x-ratelimit-remaining"), Some("7"))
+      assertEquals(response.header("X-RateLimit-Remaining"), Some("7"))
+      assert(response.headers.contains("x-ratelimit-remaining"))
+  }
+
   test("the bundled ember client resource can be built for IO") {
     MastodonHttp4s.resource[IO](Host("code.party"), BearerToken("secret")).use(_ => IO.unit)
   }
