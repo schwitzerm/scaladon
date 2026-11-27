@@ -13,7 +13,8 @@ import org.http4s.{
   Method,
   Request as Http4sRequest,
   Response as Http4sResponse,
-  Uri
+  Uri,
+  UrlForm
 }
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
@@ -65,11 +66,14 @@ object Http4sBackend:
           headers = headers
         )
         request.body match
-          case None        => base
           case Some(json) =>
             base
               .withEntity(json.noSpaces)
               .withContentType(`Content-Type`(MediaType.application.json))
+          case None =>
+            request.form match
+              case Some(fields) => base.withEntity(UrlForm(fields*))
+              case None         => base
       }
 
   private def readBody[F[_]: Async](response: Http4sResponse[F]): F[Response] =

@@ -26,6 +26,15 @@ final case class EndpointRunner[F[_]: MonadThrow](
   private val effect: MonadThrow[F] = MonadThrow[F]
 
   def run[A](endpoint: Endpoint[A]): F[A] =
+    effect.map(runWithResponse(endpoint))(_._1)
+
+  /** Like [[run]], but also returns the raw response.
+    *
+    * Some endpoints carry meaning in headers rather than the body: status context returns
+    * `Mastodon-Async-Refresh` while replies are fetched in the background. Rate limiting is
+    * already modelled in [[ApiError]]; this is for the rest.
+    */
+  def runWithResponse[A](endpoint: Endpoint[A]): F[(A, Response)] =
     if endpoint.authenticated && token.isEmpty then
       effect.raiseError(ApiException(ApiError.NotAuthenticated(endpoint.path)))
     else
@@ -35,7 +44,9 @@ final case class EndpointRunner[F[_]: MonadThrow](
           ApiException(ApiError.Transport(cause))
       }
       effect.flatMap(response) { value =>
-        interpret(endpoint, value).fold(error => effect.raiseError(ApiException(error)), effect.pure)
+        interpret(endpoint, value) match
+          case Left(error) => effect.raiseError(ApiException(error))
+          case Right(result) => effect.pure((result, value))
       }
 
   def mapK[G[_]: MonadThrow](transform: F ~> G): EndpointRunner[G] =
@@ -43,7 +54,7 @@ final case class EndpointRunner[F[_]: MonadThrow](
 
   private def build[A](endpoint: Endpoint[A]): Request =
     val url = s"${host.baseUrl}${endpoint.path}${queryString(endpoint.query)}"
-    val base = Request(endpoint.method, url, body = endpoint.body)
+    val base = Request(endpoint.method, url, body = endpoint.body, form = endpoint.form)
     if endpoint.authenticated then
       token.fold(base)(t => base.withHeader("Authorization", s"Bearer ${t.value}"))
     else base

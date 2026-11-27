@@ -7,7 +7,8 @@ final case class Request(
     method: HttpMethod,
     url: String,
     headers: Map[String, String] = Map.empty,
-    body: Option[Json] = None
+    body: Option[Json] = None,
+    form: Option[List[(String, String)]] = None
 ):
   def withHeader(name: String, value: String): Request =
     copy(headers = headers.updated(name, value))
