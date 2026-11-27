@@ -674,6 +674,25 @@ object Codecs:
     yield Context(ancestors, descendants)
   }
 
+  // Declared before its consumers (`ScheduledStatus`) because a given defined later in this
+  // object is not visible to implicit search here.
+  given Decoder[MediaType] = Decoder.decodeString.emap(value =>
+    MediaType.fromWire(value).toRight(s"Unknown media type '$value'")
+  )
+
+  given Decoder[MediaAttachment] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[Id]("id")
+      kind        <- cursor.get[MediaType]("type")
+      url         <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      previewUrl  <- cursor.get[Option[String]]("preview_url").map(_.filter(_.nonEmpty))
+      remoteUrl   <- cursor.get[Option[String]]("remote_url").map(_.filter(_.nonEmpty))
+      textUrl     <- cursor.get[Option[String]]("text_url").map(_.filter(_.nonEmpty))
+      description <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
+      blurhash    <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
+    yield MediaAttachment(id, kind, url, previewUrl, remoteUrl, textUrl, description, blurhash)
+  }
+
   given Decoder[ScheduledStatusPoll] = Decoder.instance { cursor =>
     for
       options    <- cursor.get[List[String]]("options")
@@ -718,7 +737,8 @@ object Codecs:
       id          <- cursor.get[Id]("id")
       scheduledAt <- cursor.get[Instant]("scheduled_at")
       params      <- cursor.get[ScheduledStatusParams]("params")
-    yield ScheduledStatus(id, scheduledAt, params)
+      media       <- cursor.get[Option[List[MediaAttachment]]]("media_attachments").map(_.getOrElse(Nil))
+    yield ScheduledStatus(id, scheduledAt, params, media)
   }
 
   /** `POST /api/v1/statuses` returns a `ScheduledStatus` exactly when `scheduled_at` is present. */
@@ -920,23 +940,6 @@ object Codecs:
       history   <- cursor.get[Option[List[TagHistory]]]("history").map(_.getOrElse(Nil))
       following <- cursor.get[Option[Boolean]]("following")
     yield Tag(name, url, history, following)
-  }
-
-  given Decoder[MediaType] = Decoder.decodeString.emap(value =>
-    MediaType.fromWire(value).toRight(s"Unknown media type '$value'")
-  )
-
-  given Decoder[MediaAttachment] = Decoder.instance { cursor =>
-    for
-      id          <- cursor.get[Id]("id")
-      kind        <- cursor.get[MediaType]("type")
-      url         <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
-      previewUrl  <- cursor.get[Option[String]]("preview_url").map(_.filter(_.nonEmpty))
-      remoteUrl   <- cursor.get[Option[String]]("remote_url").map(_.filter(_.nonEmpty))
-      textUrl     <- cursor.get[Option[String]]("text_url").map(_.filter(_.nonEmpty))
-      description <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
-      blurhash    <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
-    yield MediaAttachment(id, kind, url, previewUrl, remoteUrl, textUrl, description, blurhash)
   }
 
   given Decoder[PollOption] =
