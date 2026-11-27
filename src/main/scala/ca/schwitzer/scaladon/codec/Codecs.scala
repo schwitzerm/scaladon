@@ -58,6 +58,9 @@ import ca.schwitzer.scaladon.domain.{
   PreviewCardType,
   Profile,
   ProfileField,
+  PushAlerts,
+  PushPolicy,
+  PushSubscription,
   Quote,
   QuoteApprovalPolicy,
   QuoteState,
@@ -75,6 +78,8 @@ import ca.schwitzer.scaladon.domain.{
   Status,
   StatusPostResult,
   StatusesConfiguration,
+  Suggestion,
+  SuggestionSource,
   Tag,
   TagHistory,
   TimelineAccess,
@@ -1232,4 +1237,61 @@ object Codecs:
       blurhash = blurhash,
       history = history
     )
+  // --- suggestions and push codecs ---
+
+  given Decoder[SuggestionSource] = Decoder.decodeString.emap(value =>
+    SuggestionSource.fromWire(value).toRight(s"Unknown suggestion source '$value'")
+  )
+
+  /** `sources` is the current field; the deprecated scalar `source` is ignored. */
+  given Decoder[Suggestion] = Decoder.instance { cursor =>
+    for
+      sources <- cursor.get[List[SuggestionSource]]("sources")
+      account <- cursor.get[Account]("account")
+    yield Suggestion(sources, account)
+  }
+
+  given Decoder[PushPolicy] = Decoder.decodeString.emap(value =>
+    PushPolicy.fromWire(value).toRight(s"Unknown push policy '$value'")
+  )
+
+  given Decoder[PushAlerts] = Decoder.instance { cursor =>
+    for
+      mention       <- flag(cursor, "mention")
+      quote         <- flag(cursor, "quote")
+      status        <- flag(cursor, "status")
+      reblog        <- flag(cursor, "reblog")
+      follow        <- flag(cursor, "follow")
+      followRequest <- flag(cursor, "follow_request")
+      favourite     <- flag(cursor, "favourite")
+      poll          <- flag(cursor, "poll")
+      update        <- flag(cursor, "update")
+      quotedUpdate  <- flag(cursor, "quoted_update")
+      adminSignUp   <- flag(cursor, "admin.sign_up")
+      adminReport   <- flag(cursor, "admin.report")
+    yield PushAlerts(
+      mention = mention,
+      quote = quote,
+      status = status,
+      reblog = reblog,
+      follow = follow,
+      followRequest = followRequest,
+      favourite = favourite,
+      poll = poll,
+      update = update,
+      quotedUpdate = quotedUpdate,
+      adminSignUp = adminSignUp,
+      adminReport = adminReport
+    )
+  }
+
+  given Decoder[PushSubscription] = Decoder.instance { cursor =>
+    for
+      id        <- cursor.get[Long]("id")
+      endpoint  <- cursor.get[String]("endpoint")
+      standard  <- flag(cursor, "standard")
+      alerts    <- cursor.get[Option[PushAlerts]]("alerts").map(_.getOrElse(PushAlerts()))
+      serverKey <- cursor.get[String]("server_key")
+      policy    <- cursor.get[Option[PushPolicy]]("policy").map(_.getOrElse(PushPolicy.All))
+    yield PushSubscription(id, endpoint, standard, alerts, serverKey, policy)
   }
