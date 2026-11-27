@@ -25,8 +25,10 @@ import ca.schwitzer.scaladon.http.HttpMethod
   * ordinary effect combinators apply; use `attemptApi` when you want the error as a value.
   *
   * `post` returns [[StatusPostResult]] because supplying `scheduledAt` makes the server answer with
-  * a `ScheduledStatus` instead of a `Status`; the sum type keeps that branch explicit. `context`
-  * returns the experimental `Mastodon-Async-Refresh` header alongside the body.
+  * a `ScheduledStatus` instead of a `Status`; the sum type keeps that branch explicit. `delete`
+  * returns the deleted status with its source properties (`text`, poll/media) so a client can
+  * delete-and-redraft; the server has answered with that body since 2.9.0 rather than `{}`.
+  * `context` returns the experimental `Mastodon-Async-Refresh` header alongside the body.
   */
 trait Statuses[F[_]]:
   def fetch(id: Id): F[Status]
@@ -54,7 +56,7 @@ trait Statuses[F[_]]:
       quoteApprovalPolicy: Option[QuoteApprovalPolicy] = None
   ): F[Status]
 
-  def delete(id: Id): F[Unit]
+  def delete(id: Id): F[Status]
 
   def context(id: Id): F[(Context, Option[AsyncRefresh])]
 
@@ -129,9 +131,13 @@ object Statuses:
       )
       .copy(method = HttpMethod.PUT)
 
-  /** `DELETE /api/v1/statuses/{id}` — answers with `{}`. */
-  def deleteEndpoint(id: Id): Endpoint[Unit] =
-    Endpoint.unit(HttpMethod.DELETE, s"/api/v1/statuses/${id.value}")
+  /** `DELETE /api/v1/statuses/{id}` — the answer is the deleted `Status` carrying source `text`
+    * (and poll/media) for delete-and-redraft, so it decodes like any other status.
+    */
+  def deleteEndpoint(id: Id): Endpoint[Status] =
+    Endpoint
+      .get[Status](s"/api/v1/statuses/${id.value}")
+      .copy(method = HttpMethod.DELETE)
 
   /** `GET /api/v1/statuses/{id}/context` — public for public statuses. */
   def contextEndpoint(id: Id): Endpoint[Context] =
@@ -287,7 +293,7 @@ private final class LiveStatuses[F[_]](runner: EndpointRunner[F])(using effect: 
       Statuses.editEndpoint(id, text, spoilerText, sensitive, language, mediaIds, quoteApprovalPolicy)
     )
 
-  def delete(id: Id): F[Unit] =
+  def delete(id: Id): F[Status] =
     runner.run(Statuses.deleteEndpoint(id))
 
   def context(id: Id): F[(Context, Option[AsyncRefresh])] =
