@@ -10,13 +10,13 @@ import ca.schwitzer.scaladon.domain.{SearchResults, SearchType}
   * `search` returns `F[SearchResults]`; expected failures are raised inside `F` as
   * `ApiException(ApiError)`, so `attemptApi` is the way to get a value instead.
   *
-  * Access is decided by the request, not by the endpoint: a plain search is public, but `resolve`
-  * and `offset` are only honoured for an authenticated caller (Mastodon 4.0+). The endpoint
-  * therefore carries a token exactly when one of those two flags is set — an anonymous client
-  * asking for `resolve` or `offset` gets `ApiError.NotAuthenticated` before any request is sent,
-  * while a plain query works anonymously and with a token. This is the one shape the boolean
-  * `Endpoint.authenticated` can express; a server that changes the rule would need the optional
-  * token contract.
+  * Access is decided by the request, not by the endpoint: a plain search is public, but `resolve`,
+  * `offset` and `following` are only meaningful for an authenticated caller (Mastodon 4.0+). The
+  * endpoint therefore carries a token exactly when one of those flags is set — an anonymous client
+  * asking for `resolve`, `offset` or `following` gets `ApiError.NotAuthenticated` before any request
+  * is sent, while a plain query works anonymously and with a token. This is the one shape the
+  * boolean `Endpoint.authenticated` can express; a server that changes the rule would need the
+  * optional token contract.
   *
   * Full-text status search needs both an ElasticSearch backend and a token; accounts and hashtags
   * are searchable regardless. An empty category is not proof that nothing matches.
@@ -65,7 +65,7 @@ object Search:
           flag("following", following) ++
           offset.toList.map(value => "offset" -> value.toString) ++
           limit.toList.map(value => "limit" -> value.toString),
-      authenticated = resolve || offset.isDefined
+      authenticated = resolve || offset.isDefined || following
     )
 
   /** Only a set flag is sent: the server default for both is `false`. */

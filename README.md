@@ -20,7 +20,7 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
 | HTTP | http4s 0.23.39 (ember client) |
 | JSON | circe 0.14.17 |
-| Tests | 407, `sbt test` |
+| Tests | 404, `sbt test` |
 | JDK | built and tested on JDK 27 |
 
 The 0.3.2 library is **frozen in [`legacy/`](legacy/README.md)** and is not compiled by the build. Read it for endpoint paths, field names and the list of bugs the rewrite must not reproduce.
@@ -170,8 +170,8 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 | `ScheduledStatuses` | not present | list/get/reschedule/cancel scheduled posts |
 | `AsyncRefreshes` | not present | experimental `v1_alpha` refresh polling for `Mastodon-Async-Refresh` |
 | `Search`, `Favourites` | methods on the client | `GET /api/v2/search`, favourites with cursors |
-| `Blocks`, `Mutes`, `Follows`, `FollowRequests` | nested objects | ported with pagination, follow by URI, authorize/reject |
-| `Reports`, `Lists` | nested objects | reports (list/create) and list CRUD/accounts |
+| `Blocks`, `Mutes`, `FollowRequests` | nested objects | ported with pagination and authorize/reject |
+| `Reports`, `Lists` | nested objects | report filing and list CRUD/accounts |
 | `Filters`, `Markers` | not present | v2 filters with keywords/statuses, read markers |
 | `Announcements`, `Trends` | not present | announcements with reactions, trending tags/statuses/links |
 | `Suggestions`, `Push` | not present | v2 suggestions, Web Push subscription CRUD |
@@ -196,7 +196,7 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 │   │                               # accounts, timelines, collections, notifications, oauth, search, …)
 │   ├── http4s/                     # ember interpreter + MastodonHttp4s.resource
 │   └── translation/                # Future <-> IO
-├── src/test/scala/ca/schwitzer/scaladon/   # 42 suites, 407 tests
+├── src/test/scala/ca/schwitzer/scaladon/   # 42 suites, 404 tests
 └── legacy/                         # frozen 0.3.2: sources, publishing config, CI, defect ledger
 ```
 

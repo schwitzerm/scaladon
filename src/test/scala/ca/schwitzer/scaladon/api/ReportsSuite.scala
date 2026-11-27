@@ -133,39 +133,11 @@ class ReportsSuite extends CatsEffectSuite:
       )
   }
 
-  test("list targets the reports collection with the pagination query") {
-    for
-      pair      <- recording(Response(HttpStatus.Ok, s"[$reportJson]"))
-      (ref, api) = pair
-      result    <- api.list(limit = Some(20), maxId = Some(Id("99")), sinceId = Some(Id("11")), minId = Some(Id("55")))
-      requests  <- ref.get
-    yield
-      assertEquals(result.map(_.id.value), List("48914"))
-      val request = requests.head
-      assertEquals(request.method, HttpMethod.GET)
-      assertEquals(
-        request.url,
-        "https://code.party/api/v1/reports?limit=20&max_id=99&since_id=11&min_id=55"
-      )
-      assertEquals(request.headers.get("Authorization"), Some("Bearer secret"))
-  }
-
-  test("list without pagination sends no query string") {
-    for
-      pair      <- recording(Response(HttpStatus.Ok, "[]"))
-      (ref, api) = pair
-      result    <- api.list()
-      requests  <- ref.get
-    yield
-      assertEquals(result, Nil)
-      assertEquals(requests.head.url, "https://code.party/api/v1/reports")
-  }
-
   test("a 404 raises a structured, non-retryable Http error") {
     for
       pair      <- recording(Response(HttpStatus.NotFound, """{"error":"Record not found"}"""))
       (_, api)   = pair
-      result    <- api.list().attempt
+      result    <- api.create(Id("1")).attempt
     yield
       val error = apiError(result)
       assert(error.isNotFound, s"expected isNotFound, got $error")
@@ -232,9 +204,9 @@ class ReportsSuite extends CatsEffectSuite:
     val identity = new ~>[IO, IO]:
       def apply[A](fa: IO[A]): IO[A] = fa
     for
-      pair      <- recording(Response(HttpStatus.Ok, s"[$reportJson]"))
+      pair      <- recording(Response(HttpStatus.Ok, reportJson))
       (_, api)   = pair
       translated = api.mapK(identity)
-      result    <- translated.list().attempt
-    yield assertEquals(result.map(_.map(_.category)), Right(List(ReportCategory.Spam)))
+      result    <- translated.create(Id("1")).attempt
+    yield assertEquals(result.map(_.category), Right(ReportCategory.Spam))
   }

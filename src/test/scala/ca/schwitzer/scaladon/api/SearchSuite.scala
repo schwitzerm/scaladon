@@ -218,6 +218,28 @@ class SearchSuite extends CatsEffectSuite:
       assertEquals(requests, Nil)
   }
 
+  test("an anonymous client cannot filter to followed accounts") {
+    for
+      pair     <- anonymousClient(Response(HttpStatus.Ok, resultsJson))
+      (ref, search) = pair
+      result   <- search.search("cats", following = true).attempt
+      requests <- ref.get
+    yield
+      assertEquals(apiError(result), ApiError.NotAuthenticated("/api/v2/search"))
+      assertEquals(requests, Nil)
+  }
+
+  test("following alone sends the bearer token") {
+    for
+      pair     <- client(Response(HttpStatus.Ok, resultsJson))
+      (ref, search) = pair
+      _        <- search.search("cats", following = true)
+      requests <- ref.get
+    yield
+      assertEquals(requests.head.headers.get("Authorization"), Some("Bearer secret"))
+      assert(params(requests.head).contains("following"))
+  }
+
   test("a 401 from search is an Http error") {
     val body = """{"error":"The access token is invalid"}"""
     for

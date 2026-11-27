@@ -113,23 +113,6 @@ class SocialSuite extends CatsEffectSuite:
       assertEquals(muted.map(_.id.value), List("585315"))
   }
 
-  test("follows sends uri as a form field to POST /api/v1/follows and decodes the relationship") {
-    for
-      pair   <- recording(Response(HttpStatus.Ok, relationshipJson))
-      (ref, http) = pair
-      api = Follows.live[IO](EndpointRunner(http, host, Some(token)))
-      relationship <- api.follow("acct:user@remote.example")
-      requests <- ref.get
-    yield
-      val request = requests.head
-      assertEquals(request.method, HttpMethod.POST)
-      assertEquals(request.url, "https://code.party/api/v1/follows")
-      assertEquals(request.headers.get("Authorization"), Some("Bearer secret"))
-      assertEquals(request.form, Some(List("uri" -> "acct:user@remote.example")))
-      assertEquals(relationship.id.value, "8889777")
-      assertEquals(relationship.followedBy, true)
-  }
-
   test("follow requests list pages and decodes pending accounts") {
     for
       pair   <- recording(Response(HttpStatus.Ok, accountList))
@@ -203,45 +186,16 @@ class SocialSuite extends CatsEffectSuite:
     yield assert(apiError(result).isInstanceOf[ApiError.Decode], apiError(result).toString)
   }
 
-  test("an anonymous follow fails without touching the network") {
-    for
-      calls <- Ref.of[IO, Int](0)
-      http = HttpBackend.of[IO](_ => calls.update(_ + 1).as(Response(HttpStatus.Ok, relationshipJson)))
-      api = Follows.live[IO](EndpointRunner.anonymous(http, host))
-      result <- api.follow("acct:user@remote.example").attempt
-      sent   <- calls.get
-    yield
-      assertEquals(apiError(result), ApiError.NotAuthenticated("/api/v1/follows"))
-      assertEquals(sent, 0)
-  }
-
   test("mapK translates each social algebra between effects") {
     for
       pair   <- recording(Response(HttpStatus.Ok, accountList))
       (_, http) = pair
       runner = EndpointRunner(http, host, Some(token))
-      blocks <- Blocks.live[IO](runner).mapK(identity).list().attempt
-      mutes  <- Mutes.live[IO](runner).mapK(identity).list().attempt
+      blocks         <- Blocks.live[IO](runner).mapK(identity).list().attempt
+      mutes          <- Mutes.live[IO](runner).mapK(identity).list().attempt
+      followRequests <- FollowRequests.live[IO](runner).mapK(identity).list().attempt
     yield
       assertEquals(blocks.map(_.map(_.id.value)), Right(List("585315")))
       assertEquals(mutes.map(_.map(_.id.value)), Right(List("585315")))
-  }
-
-  test("mapK translates follows and follow requests between effects") {
-    for
-      followPair <- recording(Response(HttpStatus.Ok, relationshipJson))
-      (_, followHttp) = followPair
-      listPair <- recording(Response(HttpStatus.Ok, accountList))
-      (_, listHttp) = listPair
-      followed <- Follows.live[IO](EndpointRunner(followHttp, host, Some(token)))
-                    .mapK(identity)
-                    .follow("acct:user@remote.example")
-                    .attempt
-      requests <- FollowRequests.live[IO](EndpointRunner(listHttp, host, Some(token)))
-                    .mapK(identity)
-                    .list()
-                    .attempt
-    yield
-      assertEquals(followed.map(_.id.value), Right("8889777"))
-      assertEquals(requests.map(_.map(_.id.value)), Right(List("585315")))
+      assertEquals(followRequests.map(_.map(_.id.value)), Right(List("585315")))
   }
