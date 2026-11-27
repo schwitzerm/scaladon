@@ -710,6 +710,8 @@ object Codecs:
     if scheduled then
       cursor.as[ScheduledStatus].map(StatusPostResult.Scheduled.apply)
     else cursor.as[Status].map(StatusPostResult.Posted.apply)
+  }
+
   // --- collections/notifications codecs ---
 
   given Decoder[ShallowTag] = Decoder.forProduct2("name", "url")(ShallowTag.apply)
