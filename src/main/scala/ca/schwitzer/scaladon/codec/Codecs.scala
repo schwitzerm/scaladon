@@ -30,6 +30,7 @@ import ca.schwitzer.scaladon.domain.{
   Instance,
   InstanceConfiguration,
   InstanceUrls,
+  MastodonList,
   MediaAttachment,
   MediaConfiguration,
   MediaType,
@@ -50,6 +51,9 @@ import ca.schwitzer.scaladon.domain.{
   QuoteState,
   Registrations,
   Relationship,
+  RepliesPolicy,
+  Report,
+  ReportCategory,
   ScheduledStatus,
   ScheduledStatusParams,
   ScheduledStatusPoll,
@@ -1016,3 +1020,53 @@ object Codecs:
   }
 
   given Decoder[UnreadCount] = Decoder.forProduct1("count")(UnreadCount.apply)
+  // --- reports and lists codecs ---
+
+  given Decoder[ReportCategory] = Decoder.decodeString.emap(value =>
+    ReportCategory.fromWire(value).toRight(s"Unknown report category '$value'")
+  )
+
+  given Decoder[RepliesPolicy] = Decoder.decodeString.emap(value =>
+    RepliesPolicy.fromWire(value).toRight(s"Unknown replies policy '$value'")
+  )
+
+  /** The id arrays are nullable on the wire (`rule_ids` is `null` in the documented example), so a
+    * missing or `null` array becomes `Nil`; an empty comment becomes `None`.
+    */
+  given Decoder[Report] = Decoder.instance { cursor =>
+    for
+      id            <- cursor.get[Id]("id")
+      actionTaken   <- cursor.get[Boolean]("action_taken")
+      actionTakenAt <- cursor.get[Option[Instant]]("action_taken_at")
+      category      <- cursor.get[ReportCategory]("category")
+      comment       <- cursor.get[Option[String]]("comment").map(_.filter(_.nonEmpty))
+      forwarded     <- cursor.get[Boolean]("forwarded")
+      createdAt     <- cursor.get[Instant]("created_at")
+      statusIds     <- cursor.get[Option[List[Id]]]("status_ids").map(_.getOrElse(Nil))
+      collectionIds <- cursor.get[Option[List[Id]]]("collection_ids").map(_.getOrElse(Nil))
+      ruleIds       <- cursor.get[Option[List[Id]]]("rule_ids").map(_.getOrElse(Nil))
+      targetAccount <- cursor.get[Account]("target_account")
+    yield Report(
+      id,
+      actionTaken,
+      actionTakenAt,
+      category,
+      comment,
+      forwarded,
+      createdAt,
+      statusIds,
+      collectionIds,
+      ruleIds,
+      targetAccount
+    )
+  }
+
+  /** `exclusive` arrived in Mastodon 4.2; an older payload omits it and gets the server default. */
+  given Decoder[MastodonList] = Decoder.instance { cursor =>
+    for
+      id            <- cursor.get[Id]("id")
+      title         <- cursor.get[String]("title")
+      repliesPolicy <- cursor.get[RepliesPolicy]("replies_policy")
+      exclusive     <- cursor.get[Option[Boolean]]("exclusive").map(_.getOrElse(false))
+    yield MastodonList(id, title, repliesPolicy, exclusive)
+  }
