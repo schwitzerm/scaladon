@@ -15,6 +15,10 @@ import ca.schwitzer.scaladon.domain.{
   AccountStateError,
   AccountsConfiguration,
   ApiVersions,
+  Collection,
+  CollectionItem,
+  CollectionItemState,
+  CollectionWithAccounts,
   CollectionsConfiguration,
   Context,
   CredentialAccount,
@@ -24,6 +28,8 @@ import ca.schwitzer.scaladon.domain.{
   InstanceConfiguration,
   InstanceUrls,
   MediaConfiguration,
+  Notification,
+  NotificationFallback,
   PollsConfiguration,
   PreviewCard,
   PreviewCardType,
@@ -38,6 +44,7 @@ import ca.schwitzer.scaladon.domain.{
   ScheduledStatusParams,
   ScheduledStatusPoll,
   ShallowQuote,
+  ShallowTag,
   Status,
   StatusPostResult,
   StatusesConfiguration,
@@ -700,4 +707,92 @@ object Codecs:
     if scheduled then
       cursor.as[ScheduledStatus].map(StatusPostResult.Scheduled.apply)
     else cursor.as[Status].map(StatusPostResult.Posted.apply)
+  // --- collections/notifications codecs ---
+
+  given Decoder[ShallowTag] = Decoder.forProduct2("name", "url")(ShallowTag.apply)
+
+  given Decoder[CollectionItemState] = Decoder.decodeString.emap(value =>
+    CollectionItemState.fromWire(value).toRight(s"Unknown collection item state '$value'")
+  )
+
+  given Decoder[CollectionItem] = Decoder.instance { cursor =>
+    for
+      id        <- cursor.get[Id]("id")
+      accountId <- cursor.get[Option[Id]]("account_id")
+      state     <- cursor.get[CollectionItemState]("state")
+      createdAt <- cursor.get[Instant]("created_at")
+    yield CollectionItem(id, accountId, state, createdAt)
+  }
+
+  given Decoder[Collection] = Decoder.instance { cursor =>
+    for
+      id           <- cursor.get[Id]("id")
+      accountId    <- cursor.get[Id]("account_id")
+      uri          <- cursor.get[String]("uri")
+      url          <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      name         <- cursor.get[String]("name")
+      description  <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
+      language     <- cursor.get[Option[String]]("language")
+      local        <- cursor.get[Boolean]("local")
+      sensitive    <- cursor.get[Boolean]("sensitive")
+      discoverable <- cursor.get[Boolean]("discoverable")
+      tag          <- cursor.get[Option[ShallowTag]]("tag")
+      itemCount    <- cursor.get[Int]("item_count")
+      items        <- cursor.get[List[CollectionItem]]("items")
+      createdAt    <- cursor.get[Instant]("created_at")
+      updatedAt    <- cursor.get[Instant]("updated_at")
+    yield Collection(
+      id = id,
+      accountId = accountId,
+      uri = uri,
+      url = url,
+      name = name,
+      description = description,
+      language = language,
+      local = local,
+      sensitive = sensitive,
+      discoverable = discoverable,
+      tag = tag,
+      itemCount = itemCount,
+      items = items,
+      createdAt = createdAt,
+      updatedAt = updatedAt
+    )
+  }
+
+  given Decoder[CollectionWithAccounts] = Decoder.instance { cursor =>
+    for
+      accounts   <- cursor.get[List[Account]]("accounts")
+      collection <- cursor.get[Collection]("collection")
+    yield CollectionWithAccounts(accounts, collection)
+  }
+
+  given Decoder[NotificationFallback] = Decoder.instance { cursor =>
+    for
+      title   <- cursor.get[String]("title")
+      summary <- cursor.get[Option[String]]("summary")
+      details <- cursor.get[Option[String]]("details")
+    yield NotificationFallback(title, summary, details)
+  }
+
+  given Decoder[Notification] = Decoder.instance { cursor =>
+    for
+      id         <- cursor.get[Id]("id")
+      kind       <- cursor.get[String]("type")
+      groupKey   <- cursor.get[Option[String]]("group_key")
+      createdAt  <- cursor.get[Instant]("created_at")
+      account    <- cursor.get[Account]("account")
+      status     <- cursor.get[Option[Json]]("status").flatMap(decodeOption)
+      collection <- cursor.get[Option[Collection]]("collection")
+      fallback   <- cursor.get[Option[NotificationFallback]]("fallback")
+    yield Notification(
+      id = id,
+      kind = kind,
+      groupKey = groupKey,
+      createdAt = createdAt,
+      account = account,
+      status = status,
+      collection = collection,
+      fallback = fallback
+    )
   }
