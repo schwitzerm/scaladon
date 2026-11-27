@@ -14,18 +14,19 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 | | |
 |---|---|
 | Version | `0.4.0-SNAPSHOT` (unreleased) |
-| Branch | `dev/refactor` |
+| API | Mastodon 5.0 / API version 12 (latest only) |
+| Branch | `dev/modern-mastodon-api` |
 | Language | Scala 3.10.1 |
 | Build | sbt 1.13.1 |
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
 | HTTP | http4s 0.23.39 (ember client) |
 | JSON | circe 0.14.17 |
-| Tests | 35, `sbt test` |
+| Tests | 143, `sbt test` |
 | JDK | built and tested on JDK 27 |
 
 The 0.3.2 library is **frozen in [`legacy/`](legacy/README.md)** and is not compiled by the build. Read it for endpoint paths, field names and the list of bugs the rewrite must not reproduce.
 
-This is a skeleton, not a finished client: `Statuses` is the only ported namespace. The transport is wired: `http4s`/ember interprets the `HttpBackend` algebra, and a `Future`-based backend can be lifted into `IO` for reuse. See [Roadmap](#roadmap).
+The adapter targets **Mastodon API version 12** (Mastodon 5.0) and deliberately drops compatibility with older servers and with the 0.3.2 shape. `Instances`, `Statuses`, `Accounts`, `Profile`, `Timelines`, `Collections`, `Notifications` and `OAuth` are ported; the remaining namespaces are listed in the [Roadmap](#roadmap). The transport is wired: `http4s`/ember interprets the `HttpBackend` algebra, and a `Future`-based backend can be lifted into `IO` for reuse.
 
 ## Requirements
 
@@ -56,7 +57,7 @@ Layers, one direction of dependency: outer layers may know inner ones, never the
 | Interpreter | `.http4s` | `Http4sBackend` (ember), `MastodonHttp4s.resource` | http4s, Cats Effect, transport |
 | Client | `.Mastodon` | `Mastodon[F[_]]`, an aggregate of the algebras | API, transport |
 
-Design rules the skeleton already enforces:
+Design rules the adapter enforces:
 
 * **Effects only at the edge.** `domain`, `codec` and endpoint construction are total functions. The only effectful member is `HttpBackend.run`.
 * **One error channel.** API methods return `F[A]`; every expected failure is raised inside `F` as `ApiException(ApiError)`. The payload is a pure ADT — `Transport`, `Http`, `RateLimited`, `Decode`, `NotAuthenticated` — with `retryable`, `isNotFound` and `isUnauthorized`. `.attemptApi` recovers typed failures as values when you want them. The legacy `MastodonResponse` ADT (errors as a `Throwable` wrapper you had to unwrap) is gone.
@@ -143,7 +144,7 @@ Cancellation is never converted into an API error; it passes through untouched.
 When you prefer values, use `attemptApi`:
 
 ```scala
-client.statuses.post("hi").attemptApi: IO[Either[ApiError, Status]]
+client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 ```
 
 ## What is ported
@@ -157,10 +158,17 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, Status]]
 | Transport | `Flow` + `Future[HttpResponse]` | `HttpBackend[F]` + `mapK` |
 | HTTP client | Akka HTTP `outgoingConnectionHttps` | http4s 0.23 ember, as `Http4sBackend` |
 | Endpoints | methods on nested objects | `Endpoint[A]` values + runner |
-| `Statuses` | all 11 methods, several broken | `fetch`, `post`, `delete`; remaining methods to port |
-| `Accounts`, `Timelines`, `Search`, … | 11 namespaces | not yet ported |
-| `createApp`, `login`, disk cache | implemented | **not ported** (open decision) |
-| Tests | none | 35 |
+| `Instances` | `GET /api/v1/instance` | `GET /api/v2/instance`: API-version gate, server limits, VAPID key, timeline access |
+| `Statuses` | all 11 methods, several broken | `fetch`, `post` (quotes, scheduling, polls, media), `delete`, `edit`, `context` (+ `Mastodon-Async-Refresh`), `card`, `favourite`/`unfavourite`, `reblog`/`unreblog`, `favouritedBy`/`rebloggedBy` |
+| `Accounts` | client-class methods | `fetch`, `verifyCredentials`, `statuses`, `followers`, `following`, follow/block/mute actions, `relationships` |
+| `Profile` | via `update_credentials` | `GET`/`PATCH /api/v1/profile` (raw + formatted fields) |
+| `Timelines` | home/public/tag | `home` (5.0 exclude filters), `publicTimeline`, `tag`, `list` |
+| `Collections` | not present | full 4.6+ CRUD, items, `forAccount`, `inCollections` |
+| `Notifications` | list/get/clear | list (types, `supported_types`), get, clear, `NotificationFallback` |
+| `OAuth` | `createApp`/`login`/disk cache | discovery, token, revoke, userinfo, authorize URL, PKCE S256, `prompt=create` |
+| Search, Favourites, Blocks, Mutes, Follows, FollowRequests, Reports, Lists, Markers, Filters, Announcements, … | 11 namespaces | not yet ported |
+| `createApp`, disk cache | implemented | **not ported** (open decision); the OAuth token flow is |
+| Tests | none | 143 |
 
 ## Repository layout
 
@@ -175,10 +183,10 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, Status]]
 │   ├── domain/                     # pure data + ApiError/ApiException
 │   ├── codec/Codecs.scala          # circe instances
 │   ├── http/                       # transport typeclass and request/response values
-│   ├── api/                        # Endpoint, EndpointRunner, Statuses, attemptApi
+│   ├── api/                        # Endpoint, Runner, Instances, Statuses, Accounts, Profile, Timelines, Collections, Notifications, OAuth, attemptApi
 │   ├── http4s/                     # ember interpreter + MastodonHttp4s.resource
 │   └── translation/                # Future <-> IO
-├── src/test/scala/ca/schwitzer/scaladon/   # 5 suites, 35 tests
+├── src/test/scala/ca/schwitzer/scaladon/   # 14 suites, 143 tests
 └── legacy/                         # frozen 0.3.2: sources, publishing config, CI, defect ledger
 ```
 
@@ -186,11 +194,10 @@ The build never compiles `legacy/`: sbt reads only `src/main/scala` and `src/tes
 
 ## Roadmap
 
-1. Port the remaining `Statuses` methods (`fetchContext`, `fetchCard`, `favourite`, `unfavourite`, `reblog`, `unreblog`, `favouritedBy`, `rebloggedBy`) with tests against recorded payloads.
-2. Port the remaining namespaces one algebra at a time: `Accounts`, `Timelines`, `Notifications`, `Search`, then the rest.
-3. Decide the fate of `createApp`/`login`: caller-supplied tokens, an OAuth algebra, or both.
-4. Add law tests (codec round-trips, `mapK` identity/composition) and property tests over recorded fixtures.
-5. Re-establish publishing (Central Portal) and CI; delete the frozen publishing config once replaced.
+1. Port the remaining namespaces one algebra at a time: `Search`, `Favourites`, `Blocks`, `Mutes`, `Follows`, `FollowRequests`, `Reports`, `Lists`, `Markers`, `Filters`, `Announcements`, then the rest.
+2. Decide the fate of `createApp` and the disk cache: caller-supplied tokens, dynamic registration, or neither.
+3. Add law tests (codec round-trips, `mapK` identity/composition) and property tests over recorded fixtures.
+4. Re-establish publishing (Central Portal) and CI; delete the frozen publishing config once replaced.
 
 ## License and lineage
 
