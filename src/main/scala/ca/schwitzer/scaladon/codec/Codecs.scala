@@ -207,6 +207,7 @@ object Codecs:
         text               <- cursor.get[Option[String]]("text").map(_.filter(_.nonEmpty))
         card               <- cursor.get[Option[PreviewCard]]("card")
         quote              <- cursor.get[Option[Quote]]("quote")
+        poll               <- cursor.get[Option[Poll]]("poll")
       yield Status(
         id = id,
         uri = uri,
@@ -233,7 +234,8 @@ object Codecs:
         language = language,
         text = text,
         card = card,
-        quote = quote
+        quote = quote,
+        poll = poll
       )
     }
 
