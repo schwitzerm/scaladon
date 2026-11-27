@@ -8,7 +8,8 @@ final case class Request(
     url: String,
     headers: Map[String, String] = Map.empty,
     body: Option[Json] = None,
-    form: Option[List[(String, String)]] = None
+    form: Option[List[(String, String)]] = None,
+    multipart: Option[Multipart] = None
 ):
   def withHeader(name: String, value: String): Request =
     copy(headers = headers.updated(name, value))
