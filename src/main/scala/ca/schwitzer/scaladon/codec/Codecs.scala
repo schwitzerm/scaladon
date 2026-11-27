@@ -14,6 +14,10 @@ import ca.schwitzer.scaladon.domain.{
   AccountState,
   AccountStateError,
   AccountsConfiguration,
+  Announcement,
+  AnnouncementMention,
+  AnnouncementReaction,
+  AnnouncementStatus,
   ApiVersions,
   AsyncRefreshState,
   AsyncRefreshStatus,
@@ -24,6 +28,7 @@ import ca.schwitzer.scaladon.domain.{
   CollectionsConfiguration,
   Context,
   CredentialAccount,
+  CustomEmoji,
   FeedAccess,
   Filter,
   FilterAction,
@@ -75,6 +80,7 @@ import ca.schwitzer.scaladon.domain.{
   TimelineAccess,
   TimelinesAccess,
   TranslationConfiguration,
+  TrendLink,
   UnreadCount,
   UserInfo,
   VapidConfiguration,
@@ -1130,3 +1136,100 @@ object Codecs:
           yield markers.updated(timeline, marker)
       }
     }
+  // --- announcements and trends codecs ---
+
+  given Decoder[CustomEmoji] = Decoder.instance { cursor =>
+    for
+      shortcode       <- cursor.get[String]("shortcode")
+      url             <- cursor.get[String]("url")
+      staticUrl       <- cursor.get[String]("static_url")
+      visibleInPicker <- cursor.get[Option[Boolean]]("visible_in_picker").map(_.getOrElse(false))
+      category        <- cursor.get[Option[String]]("category").map(_.filter(_.nonEmpty))
+    yield CustomEmoji(shortcode, url, staticUrl, visibleInPicker, category)
+  }
+
+  given Decoder[AnnouncementMention] =
+    Decoder.forProduct4("id", "username", "url", "acct")(AnnouncementMention.apply)
+
+  given Decoder[AnnouncementStatus] =
+    Decoder.forProduct2("id", "url")(AnnouncementStatus.apply)
+
+  given Decoder[AnnouncementReaction] = Decoder.instance { cursor =>
+    for
+      name      <- cursor.get[String]("name")
+      count     <- cursor.get[Int]("count")
+      me        <- cursor.get[Option[Boolean]]("me").map(_.getOrElse(false))
+      url       <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      staticUrl <- cursor.get[Option[String]]("static_url").map(_.filter(_.nonEmpty))
+    yield AnnouncementReaction(name, count, me, url, staticUrl)
+  }
+
+  given Decoder[Announcement] = Decoder.instance { cursor =>
+    for
+      id               <- cursor.get[Id]("id")
+      content          <- cursor.get[String]("content")
+      startsAt         <- cursor.get[Option[Instant]]("starts_at")
+      endsAt           <- cursor.get[Option[Instant]]("ends_at")
+      allDay           <- cursor.get[Option[Boolean]]("all_day").map(_.getOrElse(false))
+      publishedAt      <- cursor.get[Instant]("published_at")
+      updatedAt        <- cursor.get[Instant]("updated_at")
+      read             <- cursor.get[Option[Boolean]]("read")
+      mentions         <- cursor.get[Option[List[AnnouncementMention]]]("mentions").map(_.getOrElse(Nil))
+      statuses         <- cursor.get[Option[List[AnnouncementStatus]]]("statuses").map(_.getOrElse(Nil))
+      tags             <- cursor.get[Option[List[ShallowTag]]]("tags").map(_.getOrElse(Nil))
+      emojis           <- cursor.get[Option[List[CustomEmoji]]]("emojis").map(_.getOrElse(Nil))
+      reactions        <- cursor.get[Option[List[AnnouncementReaction]]]("reactions").map(_.getOrElse(Nil))
+      reactionsAllowed <- cursor.get[Option[Boolean]]("reactions_allowed").map(_.getOrElse(false))
+    yield Announcement(
+      id = id,
+      content = content,
+      startsAt = startsAt,
+      endsAt = endsAt,
+      allDay = allDay,
+      publishedAt = publishedAt,
+      updatedAt = updatedAt,
+      read = read,
+      mentions = mentions,
+      statuses = statuses,
+      tags = tags,
+      emojis = emojis,
+      reactions = reactions,
+      reactionsAllowed = reactionsAllowed
+    )
+  }
+
+  given Decoder[TrendLink] = Decoder.instance { cursor =>
+    for
+      url          <- cursor.get[String]("url")
+      title        <- cursor.get[String]("title")
+      description  <- cursor.get[Option[String]]("description").map(_.getOrElse(""))
+      cardType     <- cursor.get[PreviewCardType]("type")
+      authorName   <- cursor.get[Option[String]]("author_name").map(_.getOrElse(""))
+      authorUrl    <- cursor.get[Option[String]]("author_url").map(_.getOrElse(""))
+      providerName <- cursor.get[Option[String]]("provider_name").map(_.getOrElse(""))
+      providerUrl  <- cursor.get[Option[String]]("provider_url").map(_.getOrElse(""))
+      html         <- cursor.get[Option[String]]("html").map(_.getOrElse(""))
+      width        <- cursor.get[Option[Int]]("width").map(_.getOrElse(0))
+      height       <- cursor.get[Option[Int]]("height").map(_.getOrElse(0))
+      image        <- cursor.get[Option[String]]("image").map(_.filter(_.nonEmpty))
+      embedUrl     <- cursor.get[Option[String]]("embed_url").map(_.getOrElse(""))
+      blurhash     <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
+      history      <- cursor.get[Option[List[TagHistory]]]("history").map(_.getOrElse(Nil))
+    yield TrendLink(
+      url = url,
+      title = title,
+      description = description,
+      cardType = cardType,
+      authorName = authorName,
+      authorUrl = authorUrl,
+      providerName = providerName,
+      providerUrl = providerUrl,
+      html = html,
+      width = width,
+      height = height,
+      image = image,
+      embedUrl = embedUrl,
+      blurhash = blurhash,
+      history = history
+    )
+  }
