@@ -971,6 +971,8 @@ object Codecs:
       statuses <- cursor.get[Option[List[Status]]]("statuses").map(_.getOrElse(Nil))
       hashtags <- cursor.get[Option[List[Tag]]]("hashtags").map(_.getOrElse(Nil))
     yield SearchResults(accounts, statuses, hashtags)
+  }
+
   // --- async-refresh codecs ---
 
   given Decoder[AsyncRefreshState] = Decoder.decodeString.emap(value =>
