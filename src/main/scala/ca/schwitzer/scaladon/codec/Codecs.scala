@@ -23,6 +23,7 @@ import ca.schwitzer.scaladon.domain.{
   Context,
   CredentialAccount,
   FeedAccess,
+  GroupedNotifications,
   Id,
   Instance,
   InstanceConfiguration,
@@ -32,6 +33,7 @@ import ca.schwitzer.scaladon.domain.{
   MediaType,
   Notification,
   NotificationFallback,
+  NotificationGroup,
   OAuthServerMetadata,
   OAuthToken,
   Poll,
@@ -59,6 +61,7 @@ import ca.schwitzer.scaladon.domain.{
   TimelineAccess,
   TimelinesAccess,
   TranslationConfiguration,
+  UnreadCount,
   UserInfo,
   VapidConfiguration,
   Visibility
@@ -943,3 +946,43 @@ object Codecs:
       options     <- cursor.get[List[PollOption]]("options")
     yield Poll(id, expiresAt, expired, multiple, votesCount, votersCount, voted, ownVotes, options)
   }
+
+  // --- notifications-v2 codecs ---
+
+  given Decoder[NotificationGroup] = Decoder.instance { cursor =>
+    for
+      groupKey                 <- cursor.get[String]("group_key")
+      notificationsCount       <- cursor.get[Int]("notifications_count")
+      kind                     <- cursor.get[String]("type")
+      mostRecentNotificationId <- cursor.get[Id]("most_recent_notification_id")
+      pageMinId                <- cursor.get[Option[Id]]("page_min_id")
+      pageMaxId                <- cursor.get[Option[Id]]("page_max_id")
+      latestPageNotificationAt <- cursor.get[Option[Instant]]("latest_page_notification_at")
+      sampleAccountIds         <- cursor.get[List[Id]]("sample_account_ids")
+      statusId                 <- cursor.get[Option[Id]]("status_id")
+      collection               <- cursor.get[Option[Collection]]("collection")
+      fallback                 <- cursor.get[Option[NotificationFallback]]("fallback")
+    yield NotificationGroup(
+      groupKey = groupKey,
+      notificationsCount = notificationsCount,
+      kind = kind,
+      mostRecentNotificationId = mostRecentNotificationId,
+      pageMinId = pageMinId,
+      pageMaxId = pageMaxId,
+      latestPageNotificationAt = latestPageNotificationAt,
+      sampleAccountIds = sampleAccountIds,
+      statusId = statusId,
+      collection = collection,
+      fallback = fallback
+    )
+  }
+
+  given Decoder[GroupedNotifications] = Decoder.instance { cursor =>
+    for
+      accounts   <- cursor.get[List[Account]]("accounts")
+      statuses   <- cursor.get[List[Status]]("statuses")
+      groups     <- cursor.get[List[NotificationGroup]]("notification_groups")
+    yield GroupedNotifications(accounts, statuses, groups)
+  }
+
+  given Decoder[UnreadCount] = Decoder.forProduct1("count")(UnreadCount.apply)
