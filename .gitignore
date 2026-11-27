@@ -77,4 +77,5 @@ project/plugins/project/
 metals.sbt
 project/project/
 
-.omo
+.omo/
+.tmp/
