@@ -4,7 +4,7 @@ import java.time.Instant
 
 /** The generic reason a [[Report]] was filed, as of API v12 (Mastodon 4.2 added `legal`).
   *
-  * An enum with a total `fromWire`, matching [[Visibility]] (legacy #9): the API documents a closed
+  * An enum with a total `fromWire`, matching [[Visibility]]: the API documents a closed
   * set, so an unknown value fails decoding instead of leaking an untyped string. The wire strings
   * are also what `POST /api/v1/reports` expects back, which is why this type carries `wire`.
   */

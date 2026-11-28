@@ -2,7 +2,7 @@ package ca.schwitzer.scaladon.domain
 
 /** State of an asynchronous refresh, as reported by `GET /api/v1_alpha/async_refreshes/:id`.
   *
-  * An enum with a total `fromWire` instead of a `String`, matching [[Visibility]] (legacy #9): a
+  * An enum with a total `fromWire` instead of a `String`, matching [[Visibility]]: a
   * status this version does not know fails decoding loudly rather than leaking an unhandled string
   * into callers.
   */

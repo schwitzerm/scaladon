@@ -19,7 +19,7 @@ import ca.schwitzer.scaladon.http.HttpMethod
   *
   * Create supplies `keyword` and optionally `wholeWord`; update identifies an existing entry by
   * `id` to replace it, or sets `destroy` to remove it (`keyword` is then not needed). Fields that
-  * are `None` are omitted from the form body, never sent as empty values (legacy #10).
+  * are `None` are omitted from the form body, never sent as empty values.
   */
 final case class FilterKeywordAttribute(
     keyword: Option[String] = None,

@@ -8,9 +8,9 @@ import scala.concurrent.Future
 
 import ca.schwitzer.scaladon.http.HttpBackend
 
-/** The translation seam between the legacy `Future` world and effect-polymorphic code.
+/** The translation seam between a `Future`-based transport and effect-polymorphic code.
   *
-  * The 0.3.2 transport is `HttpRequest => Future[HttpResponse]`. Instead of rewriting it, wrap it
+  * An existing transport is `HttpRequest => Future[HttpResponse]`. Instead of rewriting it, wrap it
   * as `HttpBackend[Future]` and apply `futureBackendToIO`: the natural transformation lifts every
   * response into `IO`, and the pure API layers above never learn that a `Future` was involved.
   * The reverse direction (`ioBackendToFuture`) keeps the old `Future`-based API usable from a new

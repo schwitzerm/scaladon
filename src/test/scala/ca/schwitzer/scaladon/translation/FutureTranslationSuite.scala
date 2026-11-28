@@ -31,10 +31,10 @@ class FutureTranslationSuite extends CatsEffectSuite:
   }
 
   test("a Future-based backend can be lifted into IO") {
-    val legacy: HttpBackend[Future] =
+    val futureBackend: HttpBackend[Future] =
       HttpBackend.of[Future](_ => Future.successful(Response(HttpStatus.Ok, "{}")))
     FutureTranslation
-      .futureBackendToIO(legacy)
+      .futureBackendToIO(futureBackend)
       .run(Request(HttpMethod.GET, "https://code.party/api/v1/instance"))
       .map(response => assertEquals(response.status, HttpStatus.Ok))
   }

@@ -3,7 +3,7 @@ package ca.schwitzer.scaladon.domain
 /** Which replies are shown in a list's timeline (`List.replies_policy`, Mastodon 3.3+).
   *
   * Named so the cases do not collide with Scala's own collections: `list` is [[ListMembers]] and
-  * `none` is [[NoReplies]]. An enum with a total `fromWire` (legacy #9), like [[Visibility]].
+  * `none` is [[NoReplies]]. An enum with a total `fromWire`, like [[Visibility]].
   */
 enum RepliesPolicy(val wire: String):
   case Followed    extends RepliesPolicy("followed")

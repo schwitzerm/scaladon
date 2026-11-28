@@ -3,7 +3,7 @@ package ca.schwitzer.scaladon.http
 import cats.Show
 
 /** An OAuth bearer token, kept opaque so it cannot be logged or concatenated by accident.
-  * The legacy `AccessToken` wrapped a client library's credentials type; this has no dependency.
+  * It has no dependency on a client library's credentials type.
   */
 opaque type BearerToken = String
 

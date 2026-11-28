@@ -7,7 +7,7 @@ import java.time.Instant
   * `reblog` is recursive, as in the API; a boost embeds the status it boosts. `quote` is likewise
   * recursive since the quoted status may itself carry a quote (clients are advised not to render
   * more than one level). Absent optional fields are `None`; an empty `spoiler_text` is normalised
-  * to `None` (legacy decoded `""` and `null` inconsistently).
+  * to `None`, since the wire can carry both `""` and `null` for the same absence.
   *
   * The `bookmarked`, `muted`, `pinned` booleans are only meaningful when the request carried a
   * user token, and default to `false` when the server omits them. `editedAt` is `Some` once a

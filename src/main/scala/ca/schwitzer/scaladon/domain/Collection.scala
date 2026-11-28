@@ -4,14 +4,14 @@ import java.time.Instant
 
 /** A hashtag in the minimal shape Collections embed.
   *
-  * Same rationale as [[Account]]: only the fields this adapter consumes are modelled, so the legacy
+  * Same rationale as [[Account]]: only the fields this adapter consumes are modelled, so the older
   * 2017 tag shape does not force itself on the new surface.
   */
 final case class ShallowTag(name: String, url: String)
 
 /** Consent state of an account featured in a [[Collection]].
   *
-  * An enum with a total `fromWire` instead of a `String`, matching [[Visibility]] (legacy #9):
+  * An enum with a total `fromWire` instead of a `String`, matching [[Visibility]]:
   * unknown values fail decoding loudly rather than leaking an unhandled string into callers.
   */
 enum CollectionItemState:

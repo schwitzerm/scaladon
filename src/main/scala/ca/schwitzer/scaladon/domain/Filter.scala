@@ -4,7 +4,7 @@ import java.time.Instant
 
 /** Where a filter group applies.
   *
-  * An enum with a total `fromWire`, like [[Visibility]] (legacy #9): the wire vocabulary is closed
+  * An enum with a total `fromWire`, like [[Visibility]]: the wire vocabulary is closed
   * in API version 12, and an unknown value fails decoding rather than leaking a raw string.
   */
 enum FilterContext(val wire: String):
@@ -25,7 +25,7 @@ object FilterContext:
   * The Filter entity documentation says clients should treat an unknown action as `warn`; this
   * adapter instead fails decoding, because the vocabulary is closed in API version 12 (`blur` was
   * the last addition, Mastodon 4.4 / API version 5) and a silent downgrade would hide a mismatch
-  * from the caller (legacy #9).
+  * from the caller.
   */
 enum FilterAction(val wire: String):
   case Warn extends FilterAction("warn")

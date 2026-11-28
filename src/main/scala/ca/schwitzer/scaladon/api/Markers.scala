@@ -9,7 +9,7 @@ import ca.schwitzer.scaladon.domain.{Id, Marker, MarkerTimeline}
   *
   * A marker is the last read position in a timeline, saved so the client can resume where the user
   * left off. Both calls answer with a hash keyed by timeline (`home`, `notifications`), modelled as
-  * a typed map; an unknown timeline key fails decoding (legacy #9).
+  * a typed map; an unknown timeline key fails decoding.
   *
   * `F` is the effect; expected failures are raised as `ApiException(ApiError)`. A stale write
   * answers `409`, surfacing as `ApiError.Http(HttpStatus(409), …)`.

@@ -3,7 +3,7 @@ package ca.schwitzer.scaladon.domain
 /** Which users' notifications reach a Web Push endpoint (`data[policy]`, Mastodon 3.4+).
   *
   * The wire value for [[PushPolicy.Off]] is `"none"`; the case is named `Off` so it cannot be
-  * confused with `scala.None`. Unknown values fail decoding (legacy #9).
+  * confused with `scala.None`. Unknown values fail decoding.
   */
 enum PushPolicy(val wire: String):
   case All      extends PushPolicy("all")
@@ -64,7 +64,7 @@ final case class PushAlertSettings(
   * Each access token has at most one subscription. `id` is a database integer (not the string id
   * the rest of the API uses), `serverKey` is the instance's VAPID public key from
   * `configuration.vapid.public_key`, and `standard` selects RFC 8030/8291/8292 framing over the
-  * legacy draft framing (Mastodon 4.4+). `policy` defaults to [[PushPolicy.All]] when a server
+  * earlier draft framing (Mastodon 4.4+). `policy` defaults to [[PushPolicy.All]] when a server
   * omits it.
   */
 final case class PushSubscription(

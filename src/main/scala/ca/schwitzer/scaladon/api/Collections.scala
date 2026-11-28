@@ -196,7 +196,7 @@ object Collections:
   ): Json =
     Json.fromFields(optionFields(name, description, language, tagName, sensitive, discoverable))
 
-  /** Absent options are omitted, never emitted as JSON `null` (legacy #10). */
+  /** Absent options are omitted, never emitted as JSON `null`. */
   private def optionFields(
       name: Option[String],
       description: Option[String],

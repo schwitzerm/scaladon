@@ -4,7 +4,7 @@ package ca.schwitzer.scaladon.domain
   *
   * The older scalar `source` field is deprecated on the wire and is deliberately not modelled:
   * the adapter targets the latest API only, and `sources` is the field the current serializer
-  * always emits. Unknown values fail decoding rather than leaking an unhandled string (legacy #9).
+  * always emits. Unknown values fail decoding rather than leaking an unhandled string.
   */
 enum SuggestionSource(val wire: String):
   case Featured                 extends SuggestionSource("featured")

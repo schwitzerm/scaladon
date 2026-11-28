@@ -8,12 +8,11 @@ import ca.schwitzer.scaladon.domain.{Id, Report, ReportCategory}
 /** The "Reports" section: filing reports for moderators.
   *
   * Only the documented write endpoint is modelled: the current API has no list/read endpoint, so
-  * a legacy `GET /api/v1/reports` is deliberately not exposed. Filing needs a user token
+  * `GET /api/v1/reports` is deliberately not exposed. Filing needs a user token
   * (`write:reports`); failures are raised inside `F` as `ApiException(ApiError)`.
   *
   * `POST` takes form data, as the API documents it, so every array is sent as a repeated
-  * `status_ids[]`/`rule_ids[]` key and absent options are omitted rather than sent as `null`
-  * (legacy #10). `category` defaults to `other` server-side, and providing `ruleIds` makes the
+  * `status_ids[]`/`rule_ids[]` key and absent options are omitted rather than sent as `null`. `category` defaults to `other` server-side, and providing `ruleIds` makes the
   * server treat the report as a `violation` regardless of the category sent.
   */
 trait Reports[F[_]]:

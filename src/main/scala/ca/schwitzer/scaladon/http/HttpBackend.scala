@@ -7,8 +7,8 @@ import cats.{Applicative, ~>}
   * Everything above this trait is total and effect-polymorphic; an interpreter (Akka, http4s,
   * sttp, a test stub) supplies `F`. `mapK` is a natural transformation between effect categories:
   * it changes `F` to `G` without touching requests, responses or the client that uses them. That is
-  * the translation mechanism the refactor relies on — a `Future`-based legacy transport can be
-  * lifted into `IO` (see `translation.FutureTranslation`) and consumed by the new API unchanged.
+  * the translation mechanism the design relies on — a `Future`-based transport can be lifted
+  * into `IO` (see `translation.FutureTranslation`) and consumed by the API unchanged.
   */
 trait HttpBackend[F[_]]:
   self =>

@@ -11,7 +11,7 @@ import ca.schwitzer.scaladon.http.HttpMethod
   * Every call needs a user token (`read:lists`/`write:lists`); a list owned by someone else answers
   * `404`, which surfaces as `ApiError.Http` with `isNotFound`. Writes are form-encoded, as the API
   * documents them, and membership changes send the accounts as repeated `account_ids[]` keys.
-  * Absent options are omitted rather than sent as `null` (legacy #10).
+  * Absent options are omitted rather than sent as `null`.
   *
   * The type is [[ca.schwitzer.scaladon.domain.MastodonList]] because `List` here would shadow
   * `scala.List` in signatures such as `F[List[MastodonList]]`.

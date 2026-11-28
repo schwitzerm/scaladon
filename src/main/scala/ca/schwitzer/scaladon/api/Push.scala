@@ -102,7 +102,7 @@ object Push:
       "subscription[keys][auth]" -> auth
     )
 
-  /** The alert keys, in the order the API documents them; absent flags are omitted (legacy #10). */
+  /** The alert keys, in the order the API documents them; absent flags are omitted. */
   private val alertFieldsByName: List[(String, PushAlertSettings => Option[Boolean])] =
     List(
       "mention" -> (_.mention),

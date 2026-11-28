@@ -4,7 +4,7 @@ import java.time.Instant
 
 /** A timeline whose read position can be saved with the markers API.
   *
-  * An enum with a total `fromWire`, like [[Visibility]] (legacy #9): the vocabulary is closed in
+  * An enum with a total `fromWire`, like [[Visibility]]: the vocabulary is closed in
   * API version 12.
   */
 enum MarkerTimeline(val wire: String):

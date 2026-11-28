@@ -1129,7 +1129,7 @@ object Codecs:
     Decoder.forProduct3("last_read_id", "version", "updated_at")(Marker.apply)
 
   /** The markers payload is a hash keyed by timeline; keys are validated so a new timeline this
-    * version does not know fails loudly instead of being silently dropped (legacy #9).
+    * version does not know fails loudly instead of being silently dropped.
     */
   given Decoder[Map[MarkerTimeline, Marker]] =
     Decoder.decodeMap[String, Marker].emap { entries =>

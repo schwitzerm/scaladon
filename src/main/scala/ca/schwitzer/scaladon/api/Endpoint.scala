@@ -9,8 +9,8 @@ import ca.schwitzer.scaladon.http.{HttpMethod, Multipart, MultipartPart}
   * decode the result. Nothing here performs effects, so endpoints can be inspected, printed,
   * composed, or run against a stub backend.
   *
-  * This is the replacement for the legacy "one method builds a request and fires it" style: the
-  * request description is an initial algebra, and `EndpointRunner` is one of its interpreters.
+  * An endpoint is data rather than a method that builds and fires a request: the request
+  * description is an initial algebra, and `EndpointRunner` is one of its interpreters.
   */
 final case class Endpoint[A](
     method: HttpMethod,

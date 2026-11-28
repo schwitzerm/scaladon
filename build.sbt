@@ -1,5 +1,5 @@
-// New implementation. The 0.3.2 sources live in legacy/ and are deliberately
-// outside every source root: the build never compiles them. See legacy/README.md.
+// New implementation. The 0.3.2 sources and their publishing/CI configuration were removed
+// from this branch; only the current Scala 3 tree is compiled.
 
 ThisBuild / organization := "ca.schwitzer"
 ThisBuild / version      := "0.4.0-SNAPSHOT"
@@ -31,7 +31,7 @@ lazy val root = project
       "io.circe"      %% "circe-core"  % circeVersion,
       "io.circe"      %% "circe-parser" % circeVersion,
       "org.http4s"    %% "http4s-ember-client" % http4sVersion,
-      "org.slf4j"     %  "slf4j-nop"          % "1.7.36"               % Test,
+      "org.slf4j"     %  "slf4j-nop"          % "2.0.20"               % Test,
       "org.scalameta" %% "munit"               % munitVersion           % Test,
       "org.typelevel" %% "munit-cats-effect"   % munitCatsEffectVersion % Test,
       "org.scalameta" %% "munit-scalacheck"    % munitScalacheckVersion % Test,
