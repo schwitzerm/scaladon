@@ -196,6 +196,102 @@ class Http4sBackendSuite extends CatsEffectSuite:
       assert(seen.head.body.endsWith(s"--${boundary.get}--\r\n"), seen.head.body)
   }
 
+  test("two multipart encodings use distinct boundaries, each matching its own framing") {
+    val parts = Multipart(
+      List(
+        MultipartPart.file(
+          "file",
+          "cat.png",
+          "image/png",
+          "PNGDATA".getBytes(StandardCharsets.UTF_8)
+        ),
+        MultipartPart.text("description", "a diagram")
+      )
+    )
+    def upload(http: HttpBackend[IO]) =
+      http.run(
+        Request(
+          HttpMethod.POST,
+          "https://code.party/api/v2/media",
+          multipart = Some(parts)
+        )
+      )
+    for
+      pair        <- recordingBackend(Status.Accepted, """{"id":"1"}""")
+      (ref, http) = pair
+      _           <- upload(http)
+      _           <- upload(http)
+      seen        <- ref.get
+    yield
+      val boundaries = seen.map(
+        _.request.contentType.flatMap(_.mediaType.extensions.get("boundary"))
+      )
+      assert(boundaries.forall(_.isDefined), s"missing boundary: $boundaries")
+      val values = boundaries.flatten
+      assertEquals(values.size, 2)
+      assertNotEquals(values(0), values(1))
+      seen.zip(values).foreach { case (entry, boundary) =>
+        assert(entry.body.startsWith(s"--$boundary\r\n"), entry.body)
+        assert(entry.body.endsWith(s"--$boundary--\r\n"), entry.body)
+        assert(
+          entry.body.contains("Content-Disposition: form-data; name=\"description\"\r\n"),
+          entry.body
+        )
+      }
+  }
+
+  test("a multipart content type with CRLF fails before the client is called") {
+    val hostile = MultipartPart.file(
+      "file",
+      "evil.txt",
+      "image/png\r\nX-Injected: 1",
+      "DATA".getBytes(StandardCharsets.UTF_8)
+    )
+    for
+      pair   <- recordingBackend(Status.Ok, "{}")
+      (ref, http) = pair
+      result <- http
+                  .run(
+                    Request(
+                      HttpMethod.POST,
+                      "https://code.party/api/v2/media",
+                      multipart = Some(Multipart(List(hostile)))
+                    )
+                  )
+                  .attempt
+      seen <- ref.get
+    yield
+      result match
+        case Left(error: IllegalArgumentException) =>
+          assert(error.getMessage.contains("content type"), error.getMessage)
+        case other => fail(s"expected IllegalArgumentException, got $other")
+      assertEquals(seen, Nil)
+  }
+
+  test("a legal parameterised part content type is emitted verbatim") {
+    val file = MultipartPart.file(
+      "file",
+      "cat.png",
+      "image/png; charset=utf-8",
+      "PNGDATA".getBytes(StandardCharsets.UTF_8)
+    )
+    for
+      pair      <- recordingBackend(Status.Accepted, """{"id":"1"}""")
+      (ref, http) = pair
+      _ <- http.run(
+             Request(
+               HttpMethod.POST,
+               "https://code.party/api/v2/media",
+               multipart = Some(Multipart(List(file)))
+             )
+           )
+      seen <- ref.get
+    yield assert(
+      seen.head.body.contains("Content-Type: image/png; charset=utf-8\r\n"),
+      seen.head.body
+    )
+  }
+
   test("PUT, PATCH and DELETE map to their http4s methods") {
     def methodOf(method: HttpMethod): IO[org.http4s.Method] =
       for
