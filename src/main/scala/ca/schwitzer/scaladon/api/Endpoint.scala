@@ -65,6 +65,22 @@ object Endpoint:
       form = Some(fields)
     )
 
+  /** A `PUT` with an `application/x-www-form-urlencoded` body, e.g. filter and push updates. */
+  def putForm[A: Decoder](
+      path: String,
+      fields: List[(String, String)],
+      authenticated: Boolean = true
+  ): Endpoint[A] =
+    Endpoint(
+      HttpMethod.PUT,
+      path,
+      Nil,
+      None,
+      authenticated,
+      decodeWith[A],
+      form = Some(fields)
+    )
+
   /** A `PATCH` with a form body, for endpoints documented as form data. */
   def patchForm[A: Decoder](
       path: String,
