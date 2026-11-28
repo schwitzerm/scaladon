@@ -38,6 +38,9 @@ lazy val core = project
       "org.scalameta"  %% "munit"            % munitVersion           % Test,
       "org.scalameta"  %% "munit-scalacheck" % munitScalacheckVersion % Test,
       "org.scalacheck" %% "scalacheck"       % scalacheckVersion      % Test
+    ),
+    BuildGuard.settings(
+      Seq("cats-", "circe-", "http4s-", "fs2-", "log4cats-", "munit-cats-effect")
     )
   )
 
@@ -72,7 +75,8 @@ lazy val cats = project
       "org.typelevel"  %% "munit-cats-effect"  % munitCatsEffectVersion % Test,
       "org.scalameta"  %% "munit-scalacheck"   % munitScalacheckVersion % Test,
       "org.scalacheck" %% "scalacheck"         % scalacheckVersion      % Test
-    )
+    ),
+    BuildGuard.settings(Seq("http4s-", "fs2-", "log4cats-"))
   )
 
 // scaladon-http4s: the only project allowed to name http4s; it depends on the Cats client.
