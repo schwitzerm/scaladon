@@ -1,11 +1,9 @@
 package ca.schwitzer.scaladon.api
 
 import cats.{MonadThrow, ~>}
-import io.circe.Decoder
 
 import ca.schwitzer.scaladon.codec.Codecs.given
 import ca.schwitzer.scaladon.domain.{
-  ApiError,
   Filter,
   FilterAction,
   FilterContext,
@@ -144,7 +142,7 @@ object Filters:
       expiresIn: Option[Int],
       keywords: List[FilterKeywordAttribute]
   ): Endpoint[Filter] =
-    putForm[Filter](
+    Endpoint.putForm[Filter](
       s"/api/v2/filters/${id.value}",
       title.toList.map(value => "title" -> value) ++
         context.toList.flatMap(repeatedContext) ++
@@ -177,7 +175,7 @@ object Filters:
       keyword: String,
       wholeWord: Option[Boolean]
   ): Endpoint[FilterKeyword] =
-    putForm[FilterKeyword](
+    Endpoint.putForm[FilterKeyword](
       s"/api/v2/filters/keywords/${id.value}",
       List("keyword" -> keyword) ++ wholeWord.toList.map(on => "whole_word" -> on.toString)
     )
@@ -214,24 +212,6 @@ object Filters:
         attribute.wholeWord.toList.map(on => "keywords_attributes[][whole_word]" -> on.toString) ++
         (if attribute.destroy then List("keywords_attributes[][_destroy]" -> "true") else Nil)
     }
-
-  /** `Endpoint` has no `putForm` constructor yet (the transport lane owns that file), so a form
-    * `PUT` is described directly; decoding behaves exactly like `Endpoint.postForm`.
-    */
-  private def putForm[A: Decoder](
-      path: String,
-      fields: List[(String, String)]
-  ): Endpoint[A] =
-    Endpoint(
-      HttpMethod.PUT,
-      path,
-      Nil,
-      None,
-      authenticated = true,
-      decode = json =>
-        Decoder[A].decodeJson(json).left.map(failure => ApiError.Decode(failure.message)),
-      form = Some(fields)
-    )
 
 private final class LiveFilters[F[_]](runner: EndpointRunner[F]) extends Filters[F]:
 

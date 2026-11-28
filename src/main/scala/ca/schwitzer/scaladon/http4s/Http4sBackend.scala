@@ -3,7 +3,7 @@ package ca.schwitzer.scaladon.http4s
 import cats.effect.{Async, Resource}
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
-import java.util.Locale
+import java.util.{Locale, UUID}
 import fs2.io.net.Network
 import cats.syntax.either.*
 import cats.syntax.flatMap.*
@@ -58,7 +58,7 @@ object Http4sBackend:
       .leftMap(failure =>
         new IllegalArgumentException(s"Invalid URL '${request.url}': ${failure.message}")
       )
-      .map { uri =>
+      .flatMap { uri =>
         val headers = request.headers.foldLeft(Headers.empty) { case (acc, (name, value)) =>
           acc.put(Header.Raw(CIString(name), value))
         }
@@ -69,19 +69,23 @@ object Http4sBackend:
         )
         request.body match
           case Some(json) =>
-            base
-              .withEntity(json.noSpaces)
-              .withContentType(`Content-Type`(MediaType.application.json))
+            Right(
+              base
+                .withEntity(json.noSpaces)
+                .withContentType(`Content-Type`(MediaType.application.json))
+            )
           case None =>
             request.multipart match
               case Some(multipart) =>
-                base
-                  .withEntity(encodeMultipart(multipart))
-                  .withContentType(`Content-Type`(multipartMediaType))
+                encodeMultipart(multipart).map { case (boundary, bytes) =>
+                  base
+                    .withEntity(bytes)
+                    .withContentType(`Content-Type`(multipartMediaType(boundary)))
+                }
               case None =>
                 request.form match
-                  case Some(fields) => base.withEntity(UrlForm(fields*))
-                  case None         => base
+                  case Some(fields) => Right(base.withEntity(UrlForm(fields*)))
+                  case None         => Right(base)
       }
 
   private def readBody[F[_]: Async](response: Http4sResponse[F]): F[Response] =
@@ -92,29 +96,43 @@ object Http4sBackend:
       Response(HttpStatus(response.status.code), body, headers)
     }
 
-  /** A fixed boundary keeps the encoding deterministic; it is long enough that a real file is not
-    * reasonably going to contain it.
+  /** A fresh boundary for every encoding: a fixed value lets crafted upload bytes collide with the
+    * framing, so the boundary is an encoding property, not part of the `Multipart` value.
     */
-  private val multipartBoundary = "----scaladonBoundary7MA4YWxkTrZu0gW"
+  private def freshBoundary: String = s"----scaladon-${UUID.randomUUID()}"
 
-  private val multipartMediaType: MediaType =
-    MediaType.multipartType("form-data", Some(multipartBoundary))
+  private def multipartMediaType(boundary: String): MediaType =
+    MediaType.multipartType("form-data", Some(boundary))
 
-  private def encodeMultipart(multipart: Multipart): Array[Byte] =
-    val out = new ByteArrayOutputStream()
-    def write(value: String): Unit = out.write(value.getBytes(StandardCharsets.UTF_8))
-    multipart.parts.foreach { part =>
-      write(s"--$multipartBoundary\r\n")
-      write(s"Content-Disposition: form-data; name=\"${quoted(part.name)}\"")
-      part.filename.foreach(name => write(s"; filename=\"${quoted(name)}\""))
-      write("\r\n")
-      part.contentType.foreach(value => write(s"Content-Type: $value\r\n"))
-      write("\r\n")
-      out.write(part.bytes)
-      write("\r\n")
-    }
-    write(s"--$multipartBoundary--\r\n")
-    out.toByteArray
+  private def encodeMultipart(
+      multipart: Multipart
+  ): Either[IllegalArgumentException, (String, Array[Byte])] =
+    multipart.parts.iterator.flatMap(_.contentType).find(hasForbiddenHeaderCharacter) match
+      case Some(value) =>
+        Left(
+          new IllegalArgumentException(
+            s"Invalid multipart part content type '$value': CR, LF and NUL are not allowed"
+          )
+        )
+      case None =>
+        val boundary = freshBoundary
+        val out = new ByteArrayOutputStream()
+        def write(value: String): Unit = out.write(value.getBytes(StandardCharsets.UTF_8))
+        multipart.parts.foreach { part =>
+          write(s"--$boundary\r\n")
+          write(s"Content-Disposition: form-data; name=\"${quoted(part.name)}\"")
+          part.filename.foreach(name => write(s"; filename=\"${quoted(name)}\""))
+          write("\r\n")
+          part.contentType.foreach(value => write(s"Content-Type: $value\r\n"))
+          write("\r\n")
+          out.write(part.bytes)
+          write("\r\n")
+        }
+        write(s"--$boundary--\r\n")
+        Right((boundary, out.toByteArray))
+
+  private def hasForbiddenHeaderCharacter(value: String): Boolean =
+    value.exists(character => character == '\r' || character == '\n' || character == '\u0000')
 
   /** Keep a header parameter on one line and inside its quoted string. */
   private def quoted(value: String): String =

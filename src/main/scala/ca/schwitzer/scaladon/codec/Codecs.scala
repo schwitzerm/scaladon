@@ -199,6 +199,25 @@ object Codecs:
       )
     }
 
+  // Declared before its consumers (`Status`, `ScheduledStatus`) because a given defined later in
+  // this object is not visible to implicit search here.
+  given Decoder[MediaType] = Decoder.decodeString.emap(value =>
+    MediaType.fromWire(value).toRight(s"Unknown media type '$value'")
+  )
+
+  given Decoder[MediaAttachment] = Decoder.instance { cursor =>
+    for
+      id          <- cursor.get[Id]("id")
+      kind        <- cursor.get[MediaType]("type")
+      url         <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
+      previewUrl  <- cursor.get[Option[String]]("preview_url").map(_.filter(_.nonEmpty))
+      remoteUrl   <- cursor.get[Option[String]]("remote_url").map(_.filter(_.nonEmpty))
+      textUrl     <- cursor.get[Option[String]]("text_url").map(_.filter(_.nonEmpty))
+      description <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
+      blurhash    <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
+    yield MediaAttachment(id, kind, url, previewUrl, remoteUrl, textUrl, description, blurhash)
+  }
+
   given Decoder[Status] = status
 
   /** Recursive because `reblog` and `quote` embed other statuses; a `lazy val` lets the decoder refer
@@ -235,6 +254,9 @@ object Codecs:
         card               <- cursor.get[Option[PreviewCard]]("card")
         quote              <- cursor.get[Option[Quote]]("quote")
         poll               <- cursor.get[Option[Poll]]("poll")
+        mediaAttachments   <- cursor
+                                .get[Option[List[MediaAttachment]]]("media_attachments")
+                                .map(_.getOrElse(Nil))
       yield Status(
         id = id,
         uri = uri,
@@ -262,7 +284,8 @@ object Codecs:
         text = text,
         card = card,
         quote = quote,
-        poll = poll
+        poll = poll,
+        mediaAttachments = mediaAttachments
       )
     }
 
@@ -690,25 +713,6 @@ object Codecs:
       ancestors   <- cursor.get[List[Status]]("ancestors")
       descendants <- cursor.get[List[Status]]("descendants")
     yield Context(ancestors, descendants)
-  }
-
-  // Declared before its consumers (`ScheduledStatus`) because a given defined later in this
-  // object is not visible to implicit search here.
-  given Decoder[MediaType] = Decoder.decodeString.emap(value =>
-    MediaType.fromWire(value).toRight(s"Unknown media type '$value'")
-  )
-
-  given Decoder[MediaAttachment] = Decoder.instance { cursor =>
-    for
-      id          <- cursor.get[Id]("id")
-      kind        <- cursor.get[MediaType]("type")
-      url         <- cursor.get[Option[String]]("url").map(_.filter(_.nonEmpty))
-      previewUrl  <- cursor.get[Option[String]]("preview_url").map(_.filter(_.nonEmpty))
-      remoteUrl   <- cursor.get[Option[String]]("remote_url").map(_.filter(_.nonEmpty))
-      textUrl     <- cursor.get[Option[String]]("text_url").map(_.filter(_.nonEmpty))
-      description <- cursor.get[Option[String]]("description").map(_.filter(_.nonEmpty))
-      blurhash    <- cursor.get[Option[String]]("blurhash").map(_.filter(_.nonEmpty))
-    yield MediaAttachment(id, kind, url, previewUrl, remoteUrl, textUrl, description, blurhash)
   }
 
   given Decoder[ScheduledStatusPoll] = Decoder.instance { cursor =>

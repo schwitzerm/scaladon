@@ -14,6 +14,7 @@ import ca.schwitzer.scaladon.domain.{
   AsyncRefresh,
   HttpStatus,
   Id,
+  MediaType,
   QuoteApprovalPolicy,
   Status,
   StatusPostResult,
@@ -152,6 +153,18 @@ class StatusesSuite extends CatsEffectSuite:
       |  "favourites_count": 0,
       |  "favourited": false,
       |  "reblogged": false,
+      |  "media_attachments": [
+      |    {
+      |      "id": "223457",
+      |      "type": "image",
+      |      "url": "https://code.party/media/a.png",
+      |      "preview_url": "https://code.party/media/a_small.png",
+      |      "remote_url": null,
+      |      "text_url": null,
+      |      "description": "a diagram",
+      |      "blurhash": "UBL_:rOpGG-oBUNG"
+      |    }
+      |  ],
       |  "text": "hello world",
       |  "poll": {
       |    "id": "9",
@@ -479,6 +492,12 @@ class StatusesSuite extends CatsEffectSuite:
       assertEquals(deleted.id.value, "42")
       assertEquals(deleted.text, Some("hello world"))
       assertEquals(deleted.content, "<p>Hello</p>")
+      assertEquals(deleted.mediaAttachments.map(_.id.value), List("223457"))
+      assertEquals(deleted.mediaAttachments.map(_.kind), List(MediaType.Image))
+      assertEquals(
+        deleted.mediaAttachments.flatMap(_.url),
+        List("https://code.party/media/a.png")
+      )
       val request = requests.head
       assertEquals(request.method, HttpMethod.DELETE)
       assertEquals(request.url, "https://code.party/api/v1/statuses/42")

@@ -14,6 +14,8 @@ import java.time.Instant
   * status has been edited (Mastodon 3.5+). `card`, `language`, `text` and `quote` cover the
   * 4.4-5.0 surface; `repliesCount`/`quotesCount` default to `0` for servers that predate them.
   * `poll` is the poll attached to the status, absent when the status has none.
+  * `mediaAttachments` is the status media; `Nil` means the server omitted the key. It is decoded
+  * on every status, including the status `DELETE /api/v1/statuses/:id` returns for delete-and-redraft.
   */
 final case class Status(
     id: Id,
@@ -42,5 +44,6 @@ final case class Status(
     text: Option[String],
     card: Option[PreviewCard],
     quote: Option[Quote],
-    poll: Option[Poll]
+    poll: Option[Poll],
+    mediaAttachments: List[MediaAttachment]
 )

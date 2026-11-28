@@ -41,6 +41,20 @@ class EndpointSuite extends FunSuite:
     assertEquals(patchForm.form, Some(List("a" -> "b")))
   }
 
+  test("putForm sets PUT, the given form and the auth flag") {
+    val endpoint = Endpoint.putForm[String]("/x", List("a" -> "b"))
+    assertEquals(endpoint.method, HttpMethod.PUT)
+    assertEquals(endpoint.path, "/x")
+    assertEquals(endpoint.query, Nil)
+    assertEquals(endpoint.body, None)
+    assertEquals(endpoint.form, Some(List("a" -> "b")))
+    assertEquals(endpoint.authenticated, true)
+
+    val public = Endpoint.putForm[String]("/x", Nil, authenticated = false)
+    assertEquals(public.authenticated, false)
+    assertEquals(public.form, Some(Nil))
+  }
+
   test("unit and unitForm decode any response body to Unit") {
     val unit = Endpoint.unit(HttpMethod.DELETE, "/x")
     assertEquals(unit.decode(Json.obj()), Right(()))

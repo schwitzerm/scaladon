@@ -1,12 +1,11 @@
 package ca.schwitzer.scaladon.api
 
 import cats.{MonadThrow, ~>}
-import io.circe.{Decoder, Json}
 
 import java.time.Instant
 
 import ca.schwitzer.scaladon.codec.Codecs.given
-import ca.schwitzer.scaladon.domain.{ApiError, Id, ScheduledStatus}
+import ca.schwitzer.scaladon.domain.{Id, ScheduledStatus}
 import ca.schwitzer.scaladon.http.HttpMethod
 
 /** The "Scheduled statuses" section (`/api/v1/scheduled_statuses`), as an algebra of values.
@@ -62,17 +61,9 @@ object ScheduledStatuses:
   def getEndpoint(id: Id): Endpoint[ScheduledStatus] =
     Endpoint.get[ScheduledStatus](path(id))
 
-  /** `PUT` with a form body; `Endpoint` has no `putForm`, so the value is built directly. */
+  /** `PUT` with a form body carrying the new `scheduled_at`. */
   def rescheduleEndpoint(id: Id, scheduledAt: Instant): Endpoint[ScheduledStatus] =
-    Endpoint(
-      HttpMethod.PUT,
-      path(id),
-      Nil,
-      None,
-      authenticated = true,
-      decode = decodeScheduled,
-      form = Some(List("scheduled_at" -> scheduledAt.toString))
-    )
+    Endpoint.putForm[ScheduledStatus](path(id), List("scheduled_at" -> scheduledAt.toString))
 
   /** `DELETE` with no body; the runner treats the empty 200 as `{}`. */
   def cancelEndpoint(id: Id): Endpoint[Unit] =
@@ -91,9 +82,6 @@ object ScheduledStatuses:
       sinceId.toList.map(id => "since_id" -> id.value) ++
       minId.toList.map(id => "min_id" -> id.value) ++
       limit.toList.map(value => "limit" -> value.toString)
-
-  private def decodeScheduled(json: Json): Either[ApiError, ScheduledStatus] =
-    summon[Decoder[ScheduledStatus]].decodeJson(json).left.map(failure => ApiError.Decode(failure.message))
 
 private final class LiveScheduledStatuses[F[_]](runner: EndpointRunner[F]) extends ScheduledStatuses[F]:
 

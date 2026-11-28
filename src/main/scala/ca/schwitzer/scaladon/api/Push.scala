@@ -1,10 +1,9 @@
 package ca.schwitzer.scaladon.api
 
 import cats.{MonadThrow, ~>}
-import io.circe.{Decoder, Json}
 
 import ca.schwitzer.scaladon.codec.Codecs.given
-import ca.schwitzer.scaladon.domain.{ApiError, PushAlertSettings, PushPolicy, PushSubscription}
+import ca.schwitzer.scaladon.domain.{PushAlertSettings, PushPolicy, PushSubscription}
 import ca.schwitzer.scaladon.http.HttpMethod
 
 /** The "Push" section: the Web Push API subscription attached to the current access token.
@@ -72,19 +71,14 @@ object Push:
   def getEndpoint: Endpoint[PushSubscription] =
     Endpoint.get[PushSubscription]("/api/v1/push/subscription")
 
-  /** `PUT /api/v1/push/subscription`; the foundation has no `putForm`, so the value is built here. */
+  /** `PUT /api/v1/push/subscription`; only the supplied alert flags and policy are sent. */
   def updateEndpoint(
       alerts: PushAlertSettings,
       policy: Option[PushPolicy]
   ): Endpoint[PushSubscription] =
-    Endpoint(
-      HttpMethod.PUT,
+    Endpoint.putForm[PushSubscription](
       "/api/v1/push/subscription",
-      Nil,
-      None,
-      authenticated = true,
-      decode = decodeWith[PushSubscription],
-      form = Some(alertFields(alerts) ++ policyFields(policy))
+      alertFields(alerts) ++ policyFields(policy)
     )
 
   /** `DELETE /api/v1/push/subscription`. */
@@ -126,9 +120,6 @@ object Push:
 
   private def policyFields(policy: Option[PushPolicy]): List[(String, String)] =
     policy.toList.map(value => "data[policy]" -> value.wire)
-
-  private def decodeWith[A](using decoder: Decoder[A]): Json => Either[ApiError, A] =
-    json => decoder.decodeJson(json).left.map(failure => ApiError.Decode(failure.message))
 
 private final class LivePush[F[_]](runner: EndpointRunner[F]) extends Push[F]:
 
