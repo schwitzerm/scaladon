@@ -60,7 +60,7 @@ Design rules the adapter enforces:
 
 * **Effects only at the edge.** `domain`, `codec` and endpoint construction are total functions. The only effectful member is `HttpBackend.run`.
 * **One error channel.** API methods return `F[A]`; every expected failure is raised inside `F` as `ApiException(ApiError)`. The payload is a pure ADT — `Transport`, `Http`, `RateLimited`, `Decode`, `NotAuthenticated` — with `retryable`, `isNotFound` and `isUnauthorized`. `.attemptApi` recovers typed failures as values when you want them.
-* **Safe request logging.** `Request.toString` redacts `Authorization`/`Proxy-Authorization` and credential-bearing form fields, and renders body/multipart as presence markers; the wire headers still carry the bearer token. Multipart bodies get a fresh boundary per request, and part content types containing CR/LF/NUL are rejected before the client runs.
+* **Safe request logging.** `Request.toString` redacts `Authorization`/`Proxy-Authorization` and every credential-bearing form field the client sends (`client_secret`, `code`, `refresh_token`, `access_token`, `password`, `token`, `code_verifier`, and nested `…[auth]` keys such as `subscription[keys][auth]`), and renders body/multipart as presence markers; the wire headers still carry the bearer token. Multipart bodies get a fresh boundary per request, and part content types containing CR/LF/NUL are rejected before the client runs.
 * **Typeclasses, not inheritance.** JSON capability is `Decoder[A]`; transport capability is `HttpBackend[F]`; the runner needs only `MonadThrow[F]`.
 * **Endpoints are data.** An `Endpoint[A]` is a method, path, query, body, an auth flag and a decoder. It can be inspected, printed, or run against a stub.
 * **Translation by natural transformation.** `HttpBackend[F].mapK` and `Mastodon[F].mapK` are `F ~> G`; `FutureTranslation` lifts a `Future`-based backend into `IO` and back with a `Dispatcher`. That is the bridge for reusing old code without rewriting its effects.
@@ -158,7 +158,7 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 | Transport | `HttpBackend[F]` + `mapK` |
 | HTTP client | http4s 0.23 ember, as `Http4sBackend` |
 | Endpoints | `Endpoint[A]` values + runner; one shared `Endpoint.putForm` for form `PUT`s |
-| Request logging | `Request.toString` redacts bearer/Proxy headers and OAuth credential form fields; body/multipart are presence markers |
+| Request logging | `Request.toString` redacts bearer/Proxy headers and every credential-bearing OAuth/Push form field (revoke `token`, PKCE `code_verifier`, nested `subscription[keys][auth]`); body/multipart are presence markers |
 | Status media | `Status.mediaAttachments` decodes `media_attachments`; delete-and-redraft keeps the attachments |
 | Multipart | a fresh boundary per request; part content types reject CR, LF and NUL |
 | `Instances` | `GET /api/v2/instance`: API-version gate, server limits, VAPID key, timeline access |

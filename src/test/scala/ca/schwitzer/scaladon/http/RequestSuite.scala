@@ -57,6 +57,60 @@ class RequestSuite extends FunSuite:
     assert(rendered.contains("redirect_uri=https://client.example/callback"), rendered)
   }
 
+  test("redacts the OAuth revoke token") {
+    val rendered = Request(
+      HttpMethod.POST,
+      "https://code.party/oauth/revoke",
+      form = Some(
+        List(
+          "client_id"     -> "client-id",
+          "client_secret" -> "client-secret-value",
+          "token"         -> "ACCESS-TOKEN-XYZ"
+        )
+      )
+    ).toString
+    assert(rendered.contains("token=**redacted**"), rendered)
+    assert(!rendered.contains("ACCESS-TOKEN-XYZ"), rendered)
+    assert(rendered.contains("client_id=client-id"), rendered)
+  }
+
+  test("redacts the PKCE code verifier") {
+    val rendered = Request(
+      HttpMethod.POST,
+      "https://code.party/oauth/token",
+      form = Some(
+        List(
+          "grant_type"    -> "authorization_code",
+          "code"          -> "authorization-code-value",
+          "client_id"     -> "client-id",
+          "client_secret" -> "client-secret-value",
+          "code_verifier" -> "PKCE-VERIFIER-XYZ",
+          "redirect_uri"  -> "https://client.example/callback"
+        )
+      )
+    ).toString
+    assert(rendered.contains("code_verifier=**redacted**"), rendered)
+    assert(!rendered.contains("PKCE-VERIFIER-XYZ"), rendered)
+    assert(rendered.contains("redirect_uri=https://client.example/callback"), rendered)
+  }
+
+  test("redacts nested push auth keys case-insensitively") {
+    val rendered = Request(
+      HttpMethod.POST,
+      "https://code.party/api/v1/push/subscription",
+      form = Some(
+        List(
+          "subscription[endpoint]"     -> "https://push.example/xyz",
+          "subscription[keys][p256dh]" -> "p256dh-key",
+          "Subscription[Keys][Auth]"   -> "push-auth-secret"
+        )
+      )
+    ).toString
+    assert(rendered.contains("Subscription[Keys][Auth]=**redacted**"), rendered)
+    assert(!rendered.contains("push-auth-secret"), rendered)
+    assert(rendered.contains("subscription[keys][p256dh]=p256dh-key"), rendered)
+  }
+
   test("a clean request renders its method, url, headers and payload presence") {
     val rendered = Request(
       HttpMethod.POST,

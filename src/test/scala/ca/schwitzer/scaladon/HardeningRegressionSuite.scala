@@ -114,6 +114,16 @@ class HardeningRegressionSuite extends CatsEffectSuite:
       |  "created_at": 1720000000
       |}""".stripMargin
 
+  private val pushSubscriptionJson: String =
+    """{
+      |  "id": 328183,
+      |  "endpoint": "https://push.example/xyz",
+      |  "standard": true,
+      |  "server_key": "server-key",
+      |  "alerts": {},
+      |  "policy": "all"
+      |}""".stripMargin
+
   private val mediaJson: String =
     """{
       |  "id": "1",
@@ -165,6 +175,40 @@ class HardeningRegressionSuite extends CatsEffectSuite:
       assert(!rendered.contains("client-secret-value"), rendered)
       assert(!rendered.contains("authorization-code-value"), rendered)
       assert(rendered.contains("grant_type=authorization_code"), rendered)
+  }
+
+  test("H-01: revoke, PKCE and push forms redact every credential") {
+    for
+      revokePair <- recording(Response(HttpStatus.Ok, "{}"))
+      (revokeRef, revokeClient) = revokePair
+      _ <- revokeClient.oauth.revoke("ACCESS-TOKEN-XYZ", "client-id", "client-secret-value")
+      revokeRequests <- revokeRef.get
+      tokenPair <- recording(Response(HttpStatus.Ok, oauthTokenJson))
+      (tokenRef, tokenClient) = tokenPair
+      _ <- tokenClient.oauth.token(
+             OAuthGrantType.AuthorizationCode,
+             "client-id",
+             "client-secret-value",
+             code = Some("authorization-code-value"),
+             redirectUri = Some("https://client.example/callback"),
+             codeVerifier = Some("PKCE-VERIFIER-XYZ")
+           )
+      tokenRequests <- tokenRef.get
+      pushPair <- recording(Response(HttpStatus.Ok, pushSubscriptionJson))
+      (pushRef, pushClient) = pushPair
+      _ <- pushClient.push.create("https://push.example/xyz", "p256dh-key", "push-auth-secret")
+      pushRequests <- pushRef.get
+    yield
+      val revoke = revokeRequests.head.toString
+      assert(revoke.contains("token=**redacted**"), revoke)
+      assert(!revoke.contains("ACCESS-TOKEN-XYZ"), revoke)
+      val exchange = tokenRequests.head.toString
+      assert(exchange.contains("code_verifier=**redacted**"), exchange)
+      assert(!exchange.contains("PKCE-VERIFIER-XYZ"), exchange)
+      val push = pushRequests.head.toString
+      assert(push.contains("subscription[keys][auth]=**redacted**"), push)
+      assert(!push.contains("push-auth-secret"), push)
+      assert(push.contains("subscription[keys][p256dh]=p256dh-key"), push)
   }
 
   test("H-02: delete-and-redraft keeps the media attachments") {

@@ -50,11 +50,31 @@ object Request:
 
   private val credentialHeaders = Set("authorization", "proxy-authorization")
 
+  /** Credential-bearing form names, matched against the last bracketed segment so nested keys
+    * such as `subscription[keys][auth]` are covered as well as top-level fields.
+    */
   private val credentialFormFields =
-    Set("client_secret", "code", "refresh_token", "access_token", "password")
+    Set(
+      "client_secret",
+      "code",
+      "refresh_token",
+      "access_token",
+      "password",
+      "token",
+      "code_verifier",
+      "auth"
+    )
 
   private def isCredentialHeader(name: String): Boolean =
     credentialHeaders.contains(name.toLowerCase(Locale.ROOT))
 
   private def isCredentialFormField(name: String): Boolean =
-    credentialFormFields.contains(name.toLowerCase(Locale.ROOT))
+    credentialFormFields.contains(lastFormSegment(name))
+
+  private def lastFormSegment(name: String): String =
+    val normalized = name.toLowerCase(Locale.ROOT)
+    if normalized.endsWith("]") then
+      val opening = normalized.lastIndexOf('[')
+      if opening >= 0 then normalized.substring(opening + 1, normalized.length - 1)
+      else normalized
+    else normalized
