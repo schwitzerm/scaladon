@@ -8,6 +8,7 @@ import java.time.Instant
 import ca.schwitzer.scaladon.codec.Codecs.given
 import ca.schwitzer.scaladon.domain.{
   Context,
+  MediaType,
   PreviewCard,
   PreviewCardType,
   Quote,
@@ -54,6 +55,30 @@ class StatusesCodecsSuite extends FunSuite:
       |  "missing_attribution": false
       |}""".stripMargin
 
+  private val attachmentJson: String =
+    """{
+      |  "id": "223457",
+      |  "type": "image",
+      |  "url": "https://code.party/media/a.png",
+      |  "preview_url": "https://code.party/media/a_small.png",
+      |  "remote_url": null,
+      |  "text_url": null,
+      |  "description": "a diagram",
+      |  "blurhash": "UBL_:rOpGG-oBUNG"
+      |}""".stripMargin
+
+  private val nestedAttachmentJson: String =
+    """{
+      |  "id": "223458",
+      |  "type": "video",
+      |  "url": "https://code.party/media/b.mp4",
+      |  "preview_url": "https://code.party/media/b_small.png",
+      |  "remote_url": null,
+      |  "text_url": null,
+      |  "description": null,
+      |  "blurhash": null
+      |}""".stripMargin
+
   private val quotedStatusJson: String =
     s"""{
        |  "id": "99",
@@ -67,6 +92,7 @@ class StatusesCodecsSuite extends FunSuite:
        |  "in_reply_to_account_id": null,
        |  "spoiler_text": "",
        |  "sensitive": false,
+       |  "media_attachments": [$nestedAttachmentJson],
        |  "reblog": null,
        |  "reblogs_count": 0,
        |  "favourites_count": 0
@@ -96,6 +122,7 @@ class StatusesCodecsSuite extends FunSuite:
        |  "bookmarked": true,
        |  "pinned": true,
        |  "edited_at": "2025-09-05T00:33:20.309Z",
+       |  "media_attachments": [$attachmentJson],
        |  "language": "en",
        |  "text": "look at this",
        |  "card": $cardJson,
@@ -152,6 +179,25 @@ class StatusesCodecsSuite extends FunSuite:
       case other => fail(s"expected a quote, got $other")
   }
 
+  test("a status decodes its media attachments") {
+    val status = decode[Status](statusJson).toOption.get
+    assertEquals(status.mediaAttachments.map(_.id.value), List("223457"))
+    assertEquals(status.mediaAttachments.map(_.kind), List(MediaType.Image))
+    assertEquals(status.mediaAttachments.flatMap(_.url), List("https://code.party/media/a.png"))
+    assertEquals(
+      status.mediaAttachments.flatMap(_.previewUrl),
+      List("https://code.party/media/a_small.png")
+    )
+    assertEquals(status.mediaAttachments.flatMap(_.description), List("a diagram"))
+  }
+
+  test("media inside a quoted status decodes recursively") {
+    val status = decode[Status](statusJson).toOption.get
+    val quoted = status.quote.flatMap(_.quotedStatus).getOrElse(fail("expected a quoted status"))
+    assertEquals(quoted.mediaAttachments.map(_.id.value), List("223458"))
+    assertEquals(quoted.mediaAttachments.map(_.kind), List(MediaType.Video))
+  }
+
   test("a status without the optional 4.4-5.0 fields defaults the booleans to false") {
     val minimal =
       s"""{
@@ -174,6 +220,7 @@ class StatusesCodecsSuite extends FunSuite:
     assertEquals(status.card, None)
     assertEquals(status.repliesCount, 0)
     assertEquals(status.quotesCount, 0)
+    assertEquals(status.mediaAttachments, Nil)
   }
 
   test("every documented quote state decodes, including the 4.5 additions") {
