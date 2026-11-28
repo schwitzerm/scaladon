@@ -57,7 +57,8 @@ lazy val circe = project
     )
   )
 
-// scaladon-cats: the effect layer. The http4s and circe-parser entries are transitional until M-06.
+// scaladon-cats: the effect layer. It declares no http4s, fs2 or log4cats dependency and no direct
+// circe-parser entry; the remaining circe-parser jar reaches it transitively through scaladon-circe.
 lazy val cats = project
   .in(file("cats"))
   .dependsOn(core % "compile->compile", circe % "compile->compile")
@@ -67,8 +68,6 @@ lazy val cats = project
       "org.typelevel"  %% "cats-core"          % catsVersion,
       "org.typelevel"  %% "cats-effect"        % catsEffectVersion,
       "io.circe"       %% "circe-core"         % circeVersion,
-      "io.circe"       %% "circe-parser"       % circeVersion, // temporary until M-06
-      "org.http4s"     %% "http4s-ember-client" % http4sVersion, // temporary until M-06
       "org.scalameta"  %% "munit"              % munitVersion           % Test,
       "org.typelevel"  %% "munit-cats-effect"  % munitCatsEffectVersion % Test,
       "org.scalameta"  %% "munit-scalacheck"   % munitScalacheckVersion % Test,
