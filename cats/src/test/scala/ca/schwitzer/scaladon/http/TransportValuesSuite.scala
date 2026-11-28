@@ -5,6 +5,7 @@ import cats.effect.IO
 import munit.CatsEffectSuite
 
 import ca.schwitzer.scaladon.domain.{ApiError, HttpStatus}
+import ca.schwitzer.scaladon.instances.given
 
 class TransportValuesSuite extends CatsEffectSuite:
 

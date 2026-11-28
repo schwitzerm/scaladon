@@ -1,7 +1,5 @@
 package ca.schwitzer.scaladon.domain
 
-import cats.Show
-
 /** The kind of embedded preview a link resolves to. */
 enum PreviewCardType(val wire: String):
   case Link  extends PreviewCardType("link")
@@ -14,7 +12,6 @@ object PreviewCardType:
 
   def fromWire(value: String): Option[PreviewCardType] = all.find(_.wire == value)
 
-  given Show[PreviewCardType] = Show.show(_.wire)
 
 /** A rich preview card generated from a link in a status (`Status.card`).
   *

@@ -1,7 +1,5 @@
 package ca.schwitzer.scaladon.domain
 
-import cats.Show
-
 /** How a quote is authorised, as reported by the quote entities.
   *
   * Mastodon 4.5 added `blocked_account`, `blocked_domain` and `muted_account`; `deleted` is the
@@ -26,7 +24,6 @@ object QuoteState:
   /** Total inverse of [[QuoteState.wire]]; `None` for unknown values. */
   def fromWire(value: String): Option[QuoteState] = all.find(_.wire == value)
 
-  given Show[QuoteState] = Show.show(_.wire)
 
 /** The policy a status sets for who may quote it (Mastodon 4.5).
   *
@@ -42,7 +39,6 @@ object QuoteApprovalPolicy:
 
   def fromWire(value: String): Option[QuoteApprovalPolicy] = all.find(_.wire == value)
 
-  given Show[QuoteApprovalPolicy] = Show.show(_.wire)
 
 /** A full quote, carrying the quoted status whenever the server is allowed to include it.
   *

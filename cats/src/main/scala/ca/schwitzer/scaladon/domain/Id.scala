@@ -1,7 +1,5 @@
 package ca.schwitzer.scaladon.domain
 
-import cats.{Eq, Order, Show}
-
 /** A Mastodon object id.
   *
   * The wire format is a decimal string and the value routinely exceeds `Int.MaxValue`; real
@@ -15,6 +13,3 @@ object Id:
 
   extension (id: Id) def value: String = id
 
-  given Eq[Id] = Eq.fromUniversalEquals
-  given Order[Id] = Order.fromOrdering(using Ordering.String)
-  given Show[Id] = Show.show(_.value)
