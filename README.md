@@ -20,7 +20,7 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
 | HTTP | http4s 0.23.39 (ember client) |
 | JSON | circe 0.14.17 |
-| Tests | 419, `sbt test` |
+| Tests | 423, `sbt test` |
 | JDK | built and tested on JDK 27.0.1 |
 
 The 0.3.2 implementation, its publishing configuration and its CI files have been removed from this branch. Only the current Scala 3 implementation is built and tested.
@@ -181,7 +181,7 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 | `Suggestions`, `Push` | v2 suggestions, Web Push subscription CRUD |
 | Admin API, Streaming, Endorsements/Featured tags, Preferences, Annual reports, Directory, Tags | not yet ported |
 | `createApp`, disk cache | not implemented (open decision); the OAuth token flow is |
-| Tests | 404 |
+| Tests | 423 |
 
 ## Repository layout
 
@@ -200,7 +200,7 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 │   │                               # accounts, timelines, collections, notifications, oauth, search, …)
 │   ├── http4s/                     # ember interpreter + MastodonHttp4s.resource
 │   └── translation/                # Future <-> IO
-└── src/test/scala/ca/schwitzer/scaladon/   # 44 suites, 419 tests
+└── src/test/scala/ca/schwitzer/scaladon/   # 44 suites, 423 tests
 ```
 
 The build reads only `src/main/scala` and `src/test/scala`.
