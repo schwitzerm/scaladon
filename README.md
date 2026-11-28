@@ -20,7 +20,7 @@ Endpoint[A]  ──►  EndpointRunner[F]  ──►  HttpBackend[F]  ──► 
 | Effects | Cats Effect 3.7.1, Cats 2.13.0 |
 | HTTP | http4s 0.23.39 (ember client) |
 | JSON | circe 0.14.17 |
-| Tests | 404, `sbt test` |
+| Tests | 419, `sbt test` |
 | JDK | built and tested on JDK 27.0.1 |
 
 The 0.3.2 implementation, its publishing configuration and its CI files have been removed from this branch. Only the current Scala 3 implementation is built and tested.
@@ -50,7 +50,7 @@ Layers, one direction of dependency: outer layers may know inner ones, never the
 |---|---|---|---|
 | Domain | `ca.schwitzer.scaladon.domain` | `Id`, `Visibility`, `Account`, `Status`, `HttpStatus`, `ApiError`, `ApiException` | Cats only |
 | Codec | `.codec` | circe `Decoder`/`Encoder` instances for domain types | circe, domain |
-| Transport | `.http` | `HttpMethod`, `Host`, `Request`, `Response`, `BearerToken`, `HttpBackend[F]` | circe `Json`, domain |
+| Transport | `.http` | `HttpMethod`, `Host`, `Request` (redacted logging), `Response`, `BearerToken`, `HttpBackend[F]` | circe `Json`, domain |
 | API | `.api` | `Endpoint[A]`, `EndpointRunner[F]`, `Statuses[F]`, `LiveStatuses[F]` | transport, codec, domain |
 | Translation | `.translation` | `Future ↔ IO` natural transformations and backend adapters | Cats Effect, transport |
 | Interpreter | `.http4s` | `Http4sBackend` (ember), `MastodonHttp4s.resource` | http4s, Cats Effect, transport |
@@ -60,6 +60,7 @@ Design rules the adapter enforces:
 
 * **Effects only at the edge.** `domain`, `codec` and endpoint construction are total functions. The only effectful member is `HttpBackend.run`.
 * **One error channel.** API methods return `F[A]`; every expected failure is raised inside `F` as `ApiException(ApiError)`. The payload is a pure ADT — `Transport`, `Http`, `RateLimited`, `Decode`, `NotAuthenticated` — with `retryable`, `isNotFound` and `isUnauthorized`. `.attemptApi` recovers typed failures as values when you want them.
+* **Safe request logging.** `Request.toString` redacts `Authorization`/`Proxy-Authorization` and credential-bearing form fields, and renders body/multipart as presence markers; the wire headers still carry the bearer token. Multipart bodies get a fresh boundary per request, and part content types containing CR/LF/NUL are rejected before the client runs.
 * **Typeclasses, not inheritance.** JSON capability is `Decoder[A]`; transport capability is `HttpBackend[F]`; the runner needs only `MonadThrow[F]`.
 * **Endpoints are data.** An `Endpoint[A]` is a method, path, query, body, an auth flag and a decoder. It can be inspected, printed, or run against a stub.
 * **Translation by natural transformation.** `HttpBackend[F].mapK` and `Mastodon[F].mapK` are `F ~> G`; `FutureTranslation` lifts a `Future`-based backend into `IO` and back with a `Dispatcher`. That is the bridge for reusing old code without rewriting its effects.
@@ -156,9 +157,12 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 | Errors | `ApiException(ApiError)` on the effect channel; `attemptApi` for values |
 | Transport | `HttpBackend[F]` + `mapK` |
 | HTTP client | http4s 0.23 ember, as `Http4sBackend` |
-| Endpoints | `Endpoint[A]` values + runner |
+| Endpoints | `Endpoint[A]` values + runner; one shared `Endpoint.putForm` for form `PUT`s |
+| Request logging | `Request.toString` redacts bearer/Proxy headers and OAuth credential form fields; body/multipart are presence markers |
+| Status media | `Status.mediaAttachments` decodes `media_attachments`; delete-and-redraft keeps the attachments |
+| Multipart | a fresh boundary per request; part content types reject CR, LF and NUL |
 | `Instances` | `GET /api/v2/instance`: API-version gate, server limits, VAPID key, timeline access |
-| `Statuses` | `fetch`, `post` (quotes, scheduling, polls, media), `delete`, `edit`, `context` (+ `Mastodon-Async-Refresh`), `card`, `favourite`/`unfavourite`, `reblog`/`unreblog`, `favouritedBy`/`rebloggedBy` |
+| `Statuses` | `fetch`, `post` (quotes, scheduling, polls, media), `delete` (delete-and-redraft with media), `edit`, `context` (+ `Mastodon-Async-Refresh`), `card`, `favourite`/`unfavourite`, `reblog`/`unreblog`, `favouritedBy`/`rebloggedBy` |
 | `Accounts` | `fetch`, `verifyCredentials`, `statuses`, `followers`, `following`, follow/block/mute actions, `relationships` |
 | `Profile` | `GET`/`PATCH /api/v1/profile` (raw + formatted fields) |
 | `Timelines` | `home` (5.0 exclude filters), `publicTimeline`, `tag`, `list` |
@@ -196,7 +200,7 @@ client.statuses.post("hi").attemptApi: IO[Either[ApiError, StatusPostResult]]
 │   │                               # accounts, timelines, collections, notifications, oauth, search, …)
 │   ├── http4s/                     # ember interpreter + MastodonHttp4s.resource
 │   └── translation/                # Future <-> IO
-└── src/test/scala/ca/schwitzer/scaladon/   # 42 suites, 404 tests
+└── src/test/scala/ca/schwitzer/scaladon/   # 44 suites, 419 tests
 ```
 
 The build reads only `src/main/scala` and `src/test/scala`.
